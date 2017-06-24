@@ -37,7 +37,7 @@ function BigNumber:init(n)
 		end
 		-- TODO support for fractions?
 	elseif type(n) == 'table' then
-		if n.isa and n:isa(BigNumber) then
+		if BigNumber.is(n) then
 			for k,v in pairs(n) do
 				self[k] = v
 			end
@@ -494,12 +494,12 @@ function BigNumber.__tostring(n)
 	if n:isZero() then return '0' end
 	local s = ''
 	for i=n.maxExp,0,-1 do
-		s = s .. n[i]
+		s = s .. math.floor(n[i])
 	end
 	if n.minExp < 0 then
 		s = s .. '.'
 		for i=-1,n.minExp,-1 do
-			s = s .. (n[i] or 0)
+			s = s .. (math.floor(n[i]) or 0)
 		end
 	end
 	if n.negative then s = '-'..s end
