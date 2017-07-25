@@ -59,6 +59,8 @@ function BigNumber:init(n)
 end
 
 function BigNumber.__sub(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.infinite then
 		if b.infinite then
@@ -137,6 +139,8 @@ function BigNumber:carry()
 end
 
 function BigNumber.__add(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.infinite then
 		if b.infinite then
@@ -178,6 +182,8 @@ function BigNumber.__unm(a)
 end
 
 function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigInit.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local bWasNegative = b.negative
@@ -194,6 +200,8 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	return c
 end
 function BigNumber.longMul(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local c = BigNumber()
@@ -232,6 +240,8 @@ a^b = (an..a0)^b = (10^n an + ... + 10^0 a0)^b
 
 --]]
 function BigNumber.binomialIntPow(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b:isZero() then return BigNumber(1) end
 	if a:isZero() then return BigNumber() end
@@ -271,6 +281,8 @@ function BigNumber.binomialIntPow(a,b)
 	return c
 end
 function BigNumber.simpleIntPow(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.negative then error('no support for negative powers!') end
 	local c = BigNumber(1)
@@ -283,13 +295,16 @@ function BigNumber.simpleIntPow(a,b)
 end
 -- simple runs *very* fast for b<100
 -- binomial *might* run faster later ... but probably not
-BigNumber.intpow = BigNumber.simpleIntPow --binomialIntPow
+--BigNumber.intpow = BigNumber.binomialIntPow
+BigNumber.intpow = BigNumber.simpleIntPow
 BigNumber.__pow = BigNumber.intpow
 
 BigNumber.nan = BigNumber()
 BigNumber.nan.nan = true
 
 function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.maxExp == nil then return BigNumber.nan end
 	local n = BigNumber(b)
@@ -303,6 +318,8 @@ function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
 end
 
 function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b:isZero() then
 		if a:isZero() then return BigNumber.nan end
@@ -387,6 +404,8 @@ end
 BigNumber.__mod = BigNumber.intmod
 
 function BigNumber.__eq(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return false end
 	if a.maxExp == nil and b.maxExp == nil then return true end	--negative zero equals positive zero
 	if a.maxExp ~= b.maxExp then return false end
@@ -400,6 +419,8 @@ function BigNumber.__ne(a,b)
 	return not a == b
 end
 function BigNumber.__lt(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
@@ -421,6 +442,8 @@ function BigNumber.__lt(a,b)
 	return false -- equal
 end
 function BigNumber.__le(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
