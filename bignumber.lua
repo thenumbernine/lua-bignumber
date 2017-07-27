@@ -237,9 +237,10 @@ a^b = (an..a0)^b = (10^n an + ... + 10^0 a0)^b
 	+ x^3 * (a2 a1 + a1 a2)
 	+ x^4 * a2 a2
 
-
+this one turns out to run *really* slow,
+and breaks for n > 80 or so
 --]]
-function BigNumber.binomialIntPow(a,b)
+function BigNumber.intPow_binomial(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
@@ -280,7 +281,7 @@ function BigNumber.binomialIntPow(a,b)
 	c:carry()
 	return c
 end
-function BigNumber.simpleIntPow(a,b)
+function BigNumber.intPow_simple(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.nan end
@@ -293,10 +294,75 @@ function BigNumber.simpleIntPow(a,b)
 	end
 	return c
 end
+
+-- returns a table of digits, with the 0's digit in [1], and the n'th digit in [n+1]
+-- TODO bignumbers of arbitrary bases
+local function binDigits(n)
+	n = BigNumber(n)
+	-- TODO 'toBase' for the BigNumber
+	-- look in ext.meta for an example of how to do this
+	local binDigits = table()
+	local i = BigNumber(1)	-- 2^digit
+	local d = BigNumber(0)	-- digit
+	while i <= n do	-- stop once i >= n
+		d = d + 1
+		i = i * 2
+	end
+	d = d - 1
+	i = i / 2
+	-- now work backwards and add digits, starting iwth the most significant
+	while d >= 0 do
+		if n >= i then
+			binDigits[d:tonumber()+1] = 1
+			n = n - i
+		else
+			binDigits[d:tonumber()+1] = 0
+		end
+		d = d - 1
+		i = i / 2
+	end
+	return binDigits
+end
+
+-- convert a table of digits back to a number
+-- use caching of powers-of-two to do this
+local function bin2num(b)
+	local res = BigNumber(0)
+	local _2d = BigNumber(1)	--2^d
+	for d,ni in ipairs(b) do	--d=1 == 0's digit
+		if ni == 1 then
+			res = res + _2d
+		end
+		_2d = _2d * 2
+	end
+	return res
+end
+
+-- a^b = a^sum_i b_i for b_i the powers-of-two of b
+-- TODO use another power? other than 2?
+-- this runs faster than intPow_simple for n>80 (and they're both quick enough for n<=80)
+function BigNumber.intPow_binDigits(a,b)	
+	local bb = binDigits(b)	-- binary form of 'b'.  TODO arbitrary base bignumbers
+	local res = BigNumber(1)
+	local _2ToTheI = BigNumber(1)	-- 2^i
+	local aToThe2ToThei = a	--a^(2^i)
+	for _,bbi in ipairs(bb) do
+		if bbi == 1 then
+			res = res * aToThe2ToThei
+		end
+		aToThe2ToThei = aToThe2ToThei * aToThe2ToThei
+		_2ToTheI = _2ToTheI + _2ToTheI
+	end
+	return res
+end
+
 -- simple runs *very* fast for b<100
 -- binomial *might* run faster later ... but probably not
---BigNumber.intpow = BigNumber.binomialIntPow
-BigNumber.intpow = BigNumber.simpleIntPow
+-- binDigits runs faster than simple for b>80
+-- ... and should be easily extendible to decimal numbers
+--BigNumber.intpow = BigNumber.intPow_binomial
+--BigNumber.intpow = BigNumber.intPow_simple
+BigNumber.intpow = BigNumber.intPow_binDigits
 BigNumber.__pow = BigNumber.intpow
 
 BigNumber.nan = BigNumber()
