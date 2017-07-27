@@ -8,6 +8,7 @@ function BigNumber:init(n)
 	self.infinity = false
 	self.repeatFrom = nil
 	self.repeatTo = nil
+	self.base = 10
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
 		if n == '0' then return end
@@ -29,8 +30,8 @@ function BigNumber:init(n)
 		end
 		local i = 0
 		while n > 0 do
-			self[i] = n % 10
-			n = (n - self[i]) / 10
+			self[i] = n % self.base
+			n = (n - self[i]) / self.base
 			self.minExp = 0
 			self.maxExp = i
 			i = i + 1
@@ -43,13 +44,14 @@ function BigNumber:init(n)
 			end
 		else
 			for i=1,#n do
-				self[i-1] = tonumber(n[i]) % 10
+				self[i-1] = tonumber(n[i]) % self.base
 			end
 			self.minExp = 0
 			self.maxExp = #n-1
 			self.negative = n.negative or false 
 			self.nan = n.nan or false
 			self.infinity = n.infinity or false
+			self.base = n.base or 10
 		end
 		self:removeLeadingZeroes()
 	elseif n == nil then
@@ -61,6 +63,7 @@ end
 function BigNumber.__sub(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.infinite then
 		if b.infinite then
@@ -90,6 +93,7 @@ function BigNumber.__sub(a,b)
 	local c = BigNumber()
 	c.negative = a.negative
 	c.minExp = 0
+	c.base = a.base
 	local borrow = 0	-- or -1
 	local i = 0
 	while i <= a.maxExp or i <= b.maxExp do	-- shouldn't allow borrow past the end
@@ -97,7 +101,7 @@ function BigNumber.__sub(a,b)
 		borrow = 0
 		if digit < 0 then 
 			borrow = -1
-			digit = digit + 10
+			digit = digit + a.base
 		end
 		c[i] = digit
 		c.maxExp = i
@@ -126,8 +130,8 @@ function BigNumber:carry()
 	while true do
 		self[i] = (self[i] or 0) + carry
 		carry = 0
-		while self[i] >= 10 do
-			self[i] = self[i] - 10
+		while self[i] >= self.base do
+			self[i] = self[i] - self.base
 			carry = carry + 1
 		end
 		i = i + 1
@@ -141,6 +145,7 @@ end
 function BigNumber.__add(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.infinite then
 		if b.infinite then
@@ -163,12 +168,13 @@ function BigNumber.__add(a,b)
 	local c = BigNumber()
 	c.negative = a.negative	-- == b.negative
 	c.minExp = 0
+	c.base = a.base
 	local carry = 0
 	local i = 0
 	while i <= a.maxExp or i <= b.maxExp or carry > 0 do
 		local digit = (a[i] or 0) + (b[i] or 0) + carry
-		carry = math.floor(digit / 10)
-		c[i] = digit % 10
+		carry = math.floor(digit / a.base)
+		c[i] = digit % a.base
 		c.maxExp = i
 		i = i + 1
 	end
@@ -184,6 +190,7 @@ end
 function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigInit.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local bWasNegative = b.negative
@@ -191,6 +198,7 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 		b = -b
 	end
 	local c = BigNumber()
+	c.base = a.base
 	local counter = BigNumber()
 	while counter ~= b do
 		c = c + a
@@ -202,9 +210,11 @@ end
 function BigNumber.longMul(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local c = BigNumber()
+	c.base = a.base
 	c.negative = a.negative ~= b.negative
 	c.minExp = 0
 	c.maxExp = a.maxExp + b.maxExp
@@ -243,9 +253,10 @@ and breaks for n > 80 or so
 function BigNumber.intPow_binomial(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
-	if b:isZero() then return BigNumber(1) end
-	if a:isZero() then return BigNumber() end
+	if b:isZero() then return BigNumber{1, base=a.base} end
+	if a:isZero() then return BigNumber{base=a.base} end
 	if b.negative then error('no support for negative powers!') end
 	--'b' iterators cycling through the coefficients of 'a'
 	-- so iters will be sized by a's digits and increment until it reaches b
@@ -255,6 +266,7 @@ function BigNumber.intPow_binomial(a,b)
 		iters[i] = a.minExp	
 	end
 	local c = BigNumber()
+	c.base = a.base
 	c.minExp = a.minExp ^ bNum
 	c.maxExp = a.maxExp ^ bNum
 	if b:intmod(BigNumber(2)) == 1 then c.negative = a.negative end
@@ -297,31 +309,32 @@ end
 
 -- returns a table of digits, with the 0's digit in [1], and the n'th digit in [n+1]
 -- TODO bignumbers of arbitrary bases
-local function binDigits(n)
+function BigNumber.toBase(n, base)
 	n = BigNumber(n)
 	-- TODO 'toBase' for the BigNumber
 	-- look in ext.meta for an example of how to do this
-	local binDigits = table()
+	local digits = BigNumber(digits)
+	digits.base = base
 	local i = BigNumber(1)	-- 2^digit
 	local d = BigNumber(0)	-- digit
 	while i <= n do	-- stop once i >= n
 		d = d + 1
-		i = i * 2
+		i = i * base
 	end
 	d = d - 1
-	i = i / 2
+	i = i / base
 	-- now work backwards and add digits, starting iwth the most significant
 	while d >= 0 do
 		if n >= i then
-			binDigits[d:tonumber()+1] = 1
+			digits[d:tonumber()] = 1
 			n = n - i
 		else
-			binDigits[d:tonumber()+1] = 0
+			digits[d:tonumber()] = 0
 		end
 		d = d - 1
-		i = i / 2
+		i = i / base
 	end
-	return binDigits
+	return digits
 end
 
 -- convert a table of digits back to a number
@@ -342,11 +355,12 @@ end
 -- TODO use another power? other than 2?
 -- this runs faster than intPow_simple for n>80 (and they're both quick enough for n<=80)
 function BigNumber.intPow_binDigits(a,b)	
-	local bb = binDigits(b)	-- binary form of 'b'.  TODO arbitrary base bignumbers
+	local bb = b:toBase(2)	-- binary form of 'b'.  TODO arbitrary base bignumbers
 	local res = BigNumber(1)
 	local _2ToTheI = BigNumber(1)	-- 2^i
 	local aToThe2ToThei = a	--a^(2^i)
-	for _,bbi in ipairs(bb) do
+	for i=0,#bb do
+		local bbi = bb[i]
 		if bbi == 1 then
 			res = res * aToThe2ToThei
 		end
@@ -371,10 +385,12 @@ BigNumber.nan.nan = true
 function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.maxExp == nil then return BigNumber.nan end
 	local n = BigNumber(b)
 	local c = BigNumber()
+	c.base = a.base
 	while n <= a do
 		n = n + b
 		c = c + BigNumber(1)
@@ -386,10 +402,11 @@ end
 function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b:isZero() then
 		if a:isZero() then return BigNumber.nan end
-		return BigNumber{infinity=true, negative = a.negative}
+		return BigNumber{infinity=true, negative=a.negative}
 	end
 	local dividendDigits = BigNumber(a)
 	local place = dividendDigits.maxExp or 0 
@@ -426,7 +443,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			break
 		end
 		place = place - 1
-		dividendCurrentDigits = dividendCurrentDigits * BigNumber(10) + BigNumber(dividendDigits[place])
+		dividendCurrentDigits = dividendCurrentDigits * BigNumber(a.base) + BigNumber(dividendDigits[place])
 	end
 	-- final check that we're not repeating zeroes ...
 	if repeatFrom then
@@ -472,6 +489,7 @@ BigNumber.__mod = BigNumber.intmod
 function BigNumber.__eq(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a.maxExp == nil and b.maxExp == nil then return true end	--negative zero equals positive zero
 	if a.maxExp ~= b.maxExp then return false end
@@ -487,6 +505,7 @@ end
 function BigNumber.__lt(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
@@ -510,6 +529,7 @@ end
 function BigNumber.__le(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
@@ -535,7 +555,7 @@ function BigNumber.tonumber(n)
 	if n:isZero() then return 0 end
 	local sum = 0
 	for i=n.maxExp,0,-1 do
-		sum = sum * 10
+		sum = sum * n.base
 		sum = sum + n[i]
 	end
 	if n.negative then sum = -sum end
