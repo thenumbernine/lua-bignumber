@@ -2,13 +2,17 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local BigNumber = class()
 
-function BigNumber:init(n)
+function BigNumber:init(n, base)
 	self.negative = false
 	self.nan = false
 	self.infinity = false
 	self.repeatFrom = nil
 	self.repeatTo = nil
-	self.base = 10
+-- hmm... this causes errors in longIntDiv
+-- but without this I can't make the assertion in toBase() that we are getting an integer	
+--	self.minExp = 0
+--	self.maxExp = 0
+	self.base = base or 10
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
 		if n == '0' then return end
@@ -17,7 +21,7 @@ function BigNumber:init(n)
 			self.negative = true
 		end
 		for i=1,#n do
-			self[i-1] = tonumber(n:sub(-i,-i))
+			self[i-1] = tonumber(n:sub(-i,-i), self.base)
 		end
 		self.minExp = 0
 		self.maxExp = #n-1
@@ -51,7 +55,11 @@ function BigNumber:init(n)
 			self.negative = n.negative or false 
 			self.nan = n.nan or false
 			self.infinity = n.infinity or false
-			self.base = n.base or 10
+			
+			--self.base = n.base or self.base
+			if self.base ~= n.base then
+				error("now you need to convert toBase in-place on constructor")
+			end
 		end
 		self:removeLeadingZeroes()
 	elseif n == nil then
@@ -296,9 +304,11 @@ end
 function BigNumber.intPow_simple(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.negative then error('no support for negative powers!') end
 	local c = BigNumber(1)
+	c.base = a.base
 	local counter = BigNumber()
 	while counter ~= b do
 		c = c * a
@@ -311,36 +321,31 @@ end
 -- TODO bignumbers of arbitrary bases
 function BigNumber.toBase(n, base)
 	n = BigNumber(n)
-	-- TODO 'toBase' for the BigNumber
-	-- look in ext.meta for an example of how to do this
-	local digits = BigNumber(digits)
-	digits.base = base
-	local i = BigNumber(1)	-- 2^digit
-	local d = BigNumber(0)	-- digit
-	while i <= n do	-- stop once i >= n
-		d = d + 1
-		i = i * base
+	if n.base == base then return n end
+--	assert(n.minExp == 0, "can only handle integers, but got a minExp "..n.minExp)	-- can't handle fractions yet
+
+	-- construct 'p' as value 'base' in base 'n.base'
+	-- don't rely on 'toBase' to convert it -- or we'll get a recursive call
+	local p = BigNumber(base, n.base)
+	
+	local result = BigNumber()
+	result.base = base
+	result.minExp = 0
+	local i = 0
+	local b
+	while n > BigNumber(0, n.base) do
+		n, b = n:intdiv(p)
+		result[i] = b:tonumber()
+		result.maxExp = i
+		i = i + 1
 	end
-	d = d - 1
-	i = i / base
-	-- now work backwards and add digits, starting iwth the most significant
-	while d >= 0 do
-		if n >= i then
-			digits[d:tonumber()] = 1
-			n = n - i
-		else
-			digits[d:tonumber()] = 0
-		end
-		d = d - 1
-		i = i / base
-	end
-	return digits
+	return result
 end
 
 -- convert a table of digits back to a number
 -- use caching of powers-of-two to do this
 local function bin2num(b)
-	local res = BigNumber(0)
+	local res = BigNumber()
 	local _2d = BigNumber(1)	--2^d
 	for d,ni in ipairs(b) do	--d=1 == 0's digit
 		if ni == 1 then
@@ -355,9 +360,14 @@ end
 -- TODO use another power? other than 2?
 -- this runs faster than intPow_simple for n>80 (and they're both quick enough for n<=80)
 function BigNumber.intPow_binDigits(a,b)	
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.nan or b.nan then return BigNumber.nan end
+	if b.negative then error('no support for negative powers!') end
+
 	local bb = b:toBase(2)	-- binary form of 'b'.  TODO arbitrary base bignumbers
-	local res = BigNumber(1)
-	local _2ToTheI = BigNumber(1)	-- 2^i
+	local res = BigNumber(1):toBase(a.base)
+	local _2ToTheI = BigNumber(1):toBase(a.base)	-- 2^i
 	local aToThe2ToThei = a	--a^(2^i)
 	for i=0,#bb do
 		local bbi = bb[i]
@@ -389,11 +399,11 @@ function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.maxExp == nil then return BigNumber.nan end
 	local n = BigNumber(b)
-	local c = BigNumber()
+	local c = BigNumber(0, a.base)
 	c.base = a.base
 	while n <= a do
 		n = n + b
-		c = c + BigNumber(1)
+		c = c + BigNumber(1, a.base)
 	end
 	n = b - (n - a)
 	return c, n
@@ -410,14 +420,14 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	end
 	local dividendDigits = BigNumber(a)
 	local place = dividendDigits.maxExp or 0 
-	local dividendCurrentDigits = BigNumber(dividendDigits[place])	-- most significant digit
+	local dividendCurrentDigits = BigNumber(dividendDigits[place], a.base)	-- most significant digit
 	dividendDigits[place] = nil
 	dividendDigits:calcMaxExp()
 	local divisor = BigNumber(b)
-	local results = BigNumber()
+	local results = BigNumber(0, a.base)
 	results.maxExp = place
 	results.minExp = place
-	local remainder = BigNumber()
+	local remainder = BigNumber(0, a.base)
 	local digitLastRemainderPairs = table()	-- keys are digit,lastRemainder as strings
 	local repeatFrom, repeatTo
 	for precision=1,math.huge do
@@ -435,7 +445,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			end
 			digitLastRemainderPairs[key] = place 
 		end
-		assert(dividendCurrentDigits >= BigNumber(0))
+		assert(dividendCurrentDigits >= BigNumber(0, a.base))
 		results[place] = digit[0] or 0
 		results.minExp = place
 		if place <= 0 and not getRepeatingDecimals then
@@ -443,7 +453,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			break
 		end
 		place = place - 1
-		dividendCurrentDigits = dividendCurrentDigits * BigNumber(a.base) + BigNumber(dividendDigits[place])
+		dividendCurrentDigits = dividendCurrentDigits * BigNumber(a.base, a.base) + BigNumber(dividendDigits[place], a.base)
 	end
 	-- final check that we're not repeating zeroes ...
 	if repeatFrom then
@@ -612,6 +622,17 @@ function BigNumber.__tostring(n)
 		end
 	end
 	if n.negative then s = '-'..s end
+	if n.base ~= 10 then
+		if n.base == 2 then
+			s = s .. 'b'
+		elseif n.base == 8 then
+			s = s .. 'o'
+		elseif n.base == 16 then
+			s = s .. 'h'
+		else
+			s = s .. 'base'..n.base
+		end
+	end
 	return s
 end
 function BigNumber.__concat(a,b) 
