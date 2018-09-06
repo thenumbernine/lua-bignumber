@@ -492,7 +492,8 @@ end
 BigNumber.intdiv = BigNumber.longIntDiv
 
 function BigNumber.__div(a,b)
-	return (BigNumber.intdiv(a,b))	-- return only one value
+	--return (BigNumber.intdiv(a,b))	-- return only one value
+	return (BigNumber.decdiv(a,b))	-- return only one value
 end
 
 function BigNumber.intmod(a,b)
@@ -623,9 +624,9 @@ function BigNumber.__tostring(n)
 	if n.minExp < 0 then
 		s = s .. '.'
 		for i=-1,n.minExp,-1 do
-			if i == n.rangeFrom then s = s .. '[' end
+			if i == n.repeatFrom then s = s .. '[' end
 			s = s .. number.charfor(math.floor(n[i] or 0))
-			if i == n.rangeTo then s = s .. ']' end
+			if i == n.repeatTo then s = s .. ']' end
 		end
 	end
 	if n.negative then s = '-'..s end
