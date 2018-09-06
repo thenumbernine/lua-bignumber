@@ -1,5 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local number = require 'ext.number'
+
 local BigNumber = class()
 
 function BigNumber:init(n, base)
@@ -13,6 +15,7 @@ function BigNumber:init(n, base)
 --	self.minExp = 0
 --	self.maxExp = 0
 	self.base = base or 10
+	assert(self.base > 1, "can't set to a base of 1 or lower")
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
 		if n == '0' then return end
@@ -320,6 +323,8 @@ end
 -- returns a table of digits, with the 0's digit in [1], and the n'th digit in [n+1]
 -- TODO bignumbers of arbitrary bases
 function BigNumber.toBase(n, base)
+	assert(base > 1, "can't set to a base of 1 or lower")
+	
 	n = BigNumber(n)
 	if n.base == base then return n end
 --	assert(n.minExp == 0, "can only handle integers, but got a minExp "..n.minExp)	-- can't handle fractions yet
@@ -613,12 +618,14 @@ function BigNumber.__tostring(n)
 	if n:isZero() then return '0' end
 	local s = ''
 	for i=n.maxExp,0,-1 do
-		s = s .. math.floor(n[i])
+		s = s .. number.charfor(math.floor(n[i]))
 	end
 	if n.minExp < 0 then
 		s = s .. '.'
 		for i=-1,n.minExp,-1 do
-			s = s .. (math.floor(n[i]) or 0)
+			if i == n.rangeFrom then s = s .. '[' end
+			s = s .. number.charfor(math.floor(n[i] or 0))
+			if i == n.rangeTo then s = s .. ']' end
 		end
 	end
 	if n.negative then s = '-'..s end
