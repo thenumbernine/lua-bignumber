@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local number = require 'ext.number'
+local math = require 'ext.math'
 
 local BigNumber = class()
 
@@ -30,20 +31,59 @@ function BigNumber:init(n, base)
 		self.maxExp = #n-1
 		self:removeLeadingZeroes()
 	elseif type(n) == 'number' then
+--[[ original integer-only code
 		n = math.floor(n)
+		if n < 0 then
+				self.negative = true
+				n = -n
+		end
+		local i = 0
+		while n > 0 do
+				self[i] = n % self.base
+				n = (n - self[i]) / self.base
+				self.minExp = 0
+				self.maxExp = i
+				i = i + 1
+		end
+--]]
+-- [[ my attempt for decimal numbers	
 		if n < 0 then
 			self.negative = true
 			n = -n
 		end
-		local i = 0
-		while n > 0 do
-			self[i] = n % self.base
-			n = (n - self[i]) / self.base
-			self.minExp = 0
+		-- TODO use longIntDiv, esp with non-10 bases, so we can take advantage of repeating digits
+		-- TODO between this and toBase(), the code is very similar
+		-- and toBase uses BigNumbers for accuracy...
+		-- and this allows for fractional bases...
+		-- TODO first convert the number in base-10 or base-2 or something
+		-- (using ffi we can assign it to a double[1] and then use its bits to determine the number exactly)
+		-- then use toBase to convert it to whatever base is desired
+		-- and change that code to take decimals (and repeating decimals) into account
+		if n > 0 then
+			local i = math.floor(math.log(n, self.base))
+			self.minExp = i
 			self.maxExp = i
-			i = i + 1
+			local p = self.base^i
+			while n > 0 do
+				local d = math.floor((n / p) % self.base)
+				if not math.isfinite(d) then 
+					self.trailsoff = true
+					break 
+				end
+				self[i] = d 
+				n = n - d * p
+				p = p / self.base
+				self.minExp = i
+				i = i - 1
+			end
+			
+			-- TODO remove the constraint that minExp cannot be > 0
+			for j=i,0,-1 do
+				self[j] = 0
+			end
+			self.minExp = math.min(self.minExp, 0)
 		end
-		-- TODO support for fractions?
+--]]	
 	elseif type(n) == 'table' then
 		if BigNumber.is(n) then
 			for k,v in pairs(n) do
@@ -118,6 +158,7 @@ function BigNumber.__sub(a,b)
 		c.maxExp = i
 		i = i + 1
 	end
+	-- this fails for big(2.5, 2.5) / big(5)
 	assert(borrow == 0)
 	c:removeLeadingZeroes()
 	return c
@@ -147,7 +188,7 @@ function BigNumber:carry()
 		end
 		i = i + 1
 		if i > self.maxExp then
-			if carry == 0 and (self[i] == 0  or self[i] == nil) then break end
+			if carry == 0 and (self[i] == 0 or self[i] == nil) then break end
 		end
 	end
 	self:removeLeadingZeroes()
@@ -370,7 +411,7 @@ function BigNumber.intPow_binDigits(a,b)
 	if a.nan or b.nan then return BigNumber.nan end
 	if b.negative then error('no support for negative powers!') end
 
-	local bb = b:toBase(2)	-- binary form of 'b'.  TODO arbitrary base bignumbers
+	local bb = b:toBase(2)	-- binary form of 'b'. TODO arbitrary base bignumbers
 	local res = BigNumber(1):toBase(a.base)
 	local _2ToTheI = BigNumber(1):toBase(a.base)	-- 2^i
 	local aToThe2ToThei = a	--a^(2^i)
@@ -641,6 +682,9 @@ function BigNumber.__tostring(n)
 			s = s .. 'base'..n.base
 		end
 	end
+	if n.trailsoff then
+		s = s .. '...'
+	end
 	return s
 end
 function BigNumber.__concat(a,b) 
@@ -658,7 +702,7 @@ function BigNumber.factorial(n)
 end
 
 -- returns a lua table, indexes 1-n, of all the digits
---  t[1] is the 1's place, t[2] is the 10's place, etc
+-- t[1] is the 1's place, t[2] is the 10's place, etc
 function BigNumber:digits()
 	local t = table()
 	if self:isZero() then return t end
