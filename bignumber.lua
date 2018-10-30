@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local range = require 'ext.range'
 local number = require 'ext.number'
 local math = require 'ext.math'
 
@@ -194,7 +195,18 @@ function BigNumber:carry()
 	self:removeLeadingZeroes()
 end
 
+--[[
+an..a0.a-1..a(1-p)[a(-p)..a(-q)]
++ same thing with b's ...
+a = sum_i=0..n B^i a_i + 10^(1-p) * sum_i=p..q a^i / (9...9) (p-q 9's)
+b = same thing
+a + b = 
+--]]
+
+
+
 function BigNumber.__add(a,b)
+--print('BigNumber.__add',a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
@@ -220,17 +232,113 @@ function BigNumber.__add(a,b)
 	local c = BigNumber()
 	c.negative = a.negative	-- == b.negative
 	c.minExp = 0
+	if a.repeatFrom then c.minExp = math.min(c.minExp, a.repeatFrom+1) end
+	if b.repeatFrom then c.minExp = math.min(c.minExp, b.repeatFrom+1) end
 	c.base = a.base
 	local carry = 0
-	local i = 0
+	local i = c.minExp
 	while i <= a.maxExp or i <= b.maxExp or carry > 0 do
 		local digit = (a[i] or 0) + (b[i] or 0) + carry
+--		local avalue = 0
+--		local bvalue = 0
+--		if a.repeatFrom and i > a.repeatFrom then avalue = a[i] or 0 end
+--		if b.repeatFrom and i > b.repeatFrom then bvalue = b[i] or 0 end
+--		local digit = avalue + bvalue + carry
 		carry = math.floor(digit / a.base)
 		c[i] = digit % a.base
 		c.maxExp = i
 		i = i + 1
 	end
+
+-- and now for something completely different
+	if a.repeatFrom or b.repeatFrom then
+		local aRep = a:getRepeatAsInteger()
+		local bRep = b:getRepeatAsInteger()
+print('aRep', aRep)
+print('bRep', bRep)
+		-- next pad up whichever has the larger (smaller abs) repeatTo until they're both even
+		if a.repeatFrom and b.repeatFrom then
+print'padding to align'
+			if a.repeatFrom < b.repeatFrom then
+print'padding a'				
+				for i=a.minExp, a.maxExp do
+					a[i+b.repeatFrom-a.repeatFrom] = a[i]
+				end
+				for i=0,minExp-1 do
+					a[i] = 0
+				end
+			elseif b.repeatFrom < a.repeatFrom then
+print'padding b'				
+				for i=b.minExp, b.maxExp do
+					b[i+a.repeatFrom-b.repeatFrom] = b[i]
+				end
+				for i=0,minExp-1 do
+					b[i] = 0
+				end
+			end
+		end
+print('aRep', aRep)
+print('bRep', bRep)
+local aNines
+if aRep == 0 then 
+print('aNines is 1')
+	aNines = 1
+else 
+	aNines = range(aRep.maxExp+1):map(function(i) return a.base-1 end)
+print('aNines is from '..aNines:concat', ')	
+	aNines.base = a.base
+	aNines = BigNumber(aNines)
+end
+print('aNines',aNines)
+local bNines
+if bRep == 0 then
+print('bNines is 1')
+	bNines = 1
+else
+	bNines = range(bRep.maxExp+1):map(function(i) return b.base-1 end)
+print('bNines is from '..bNines:concat', ')	
+	bNines.base = b.base
+	bNines = BigNumber(bNines)
+end
+print('bNines',bNines)
+-- TODO denom, aNines, and bNines, can all be reduced by the # of nines they have in common
+local cRep = (aRep * bNines + bRep * aNines) / (aNines * bNines) 
+print('cRep', cRep, require'ext.tolua'(cRep))
+-- what happens if cRep is bigger than aRep or bRep?  where do the extra digits go?  are they repeated or not?		
+		local repeatTo
+		if a.repeatTo and not b.repeatTo then 
+			repeatTo = a.repeatTo
+		elseif b.repeatTo and not a.repeatTo then
+			repeatTo = b.repeatTo
+		else
+			repeatTo = math.min(a.repeatTo, b.repeatTo)
+		end
+print('repeatTo',repeatTo)		
+print('c.minExp', c.minExp, 'c.maxExp', c.maxExp)
+		for i=c.minExp, c.maxExp do
+			c[i+repeatTo] = cRep[i]
+print('i',i, 'i+repeatTo', i+repeatTo, 'c[i+repeatTo]', c[i+repeatTo])
+		end
+		c.repeatTo = repeatTo
+		c.repeatFrom = repeatTo + (c.maxExp - c.minExp)
+		assert(c.minExp >= c.repeatTo)
+		c.minExp = c.repeatTo
+print('c', c)
+print('c', require'ext.tolua'(c))
+	end
 	return c
+end
+
+function BigNumber:getRepeatAsInteger()
+	if not self.repeatFrom or not self.repeatTo then
+		assert(not self.repeatFrom and not self.repeatTo)
+		return BigNumber(0, self.base)
+	end
+	local digits = range(self.repeatTo, self.repeatFrom):mapi(function(i)
+		return self[i], i-self.repeatTo+1
+	end)
+	digits.base = self.base
+	return BigNumber(digits)
 end
 
 function BigNumber.__unm(a)
