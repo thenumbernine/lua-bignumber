@@ -102,7 +102,11 @@ function BigNumber:init(n, base)
 			
 			--self.base = n.base or self.base
 			if self.base ~= n.base then
-				error("now you need to convert toBase in-place on constructor")
+				if self.nan or self.infinity then
+					self.base = n.base
+				else
+					error("now you need to convert toBase in-place on constructor")
+				end
 			end
 		end
 		self:removeLeadingZeroes()
@@ -765,6 +769,13 @@ function BigNumber.calcMinExp(n)
 end
 function BigNumber.__tostring(n)
 	if n.nan then return 'nan' end
+	if n.infinity then 
+		if n.negative then
+			return '-inf'
+		else
+			return 'inf' 
+		end
+	end
 	if n:isZero() then return '0' end
 	local s = ''
 	for i=n.maxExp,0,-1 do
