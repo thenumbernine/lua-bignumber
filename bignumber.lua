@@ -61,7 +61,7 @@ function BigNumber:init(n, base)
 		-- then use toBase to convert it to whatever base is desired
 		-- and change that code to take decimals (and repeating decimals) into account
 		if n > 0 then
-			local i = math.floor(math.log(n, self.base))
+			local i = math.floor(math.log(n+1, self.base))
 			self.minExp = i
 			self.maxExp = i
 			local p = self.base^i
