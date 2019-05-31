@@ -798,7 +798,7 @@ function BigNumber.__tostring(n)
 		elseif n.base == 16 then
 			s = s .. 'h'
 		else
-			s = s .. 'base'..n.base
+			s = s .. '_'..n.base
 		end
 	end
 	if n.trailsoff then
