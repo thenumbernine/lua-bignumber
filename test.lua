@@ -8,6 +8,7 @@ local function asserteq(a,b)
 	end
 end
 
+
 -- base 10 integer operators
 
 -- constructors
@@ -88,6 +89,8 @@ asserteq(big'1.2' + big'1.3', big'2.5')
 asserteq(big'1.1' * big'1.1', big'1.21')
 
 -- div
+asserteq(big'11' / big'11', big'1')
+asserteq(big'1.1' / big'1.1', big'1')
 
 asserteq(big(1) / big(5), big'.2')
 -- TODO constructor for repeated decimals?
@@ -101,3 +104,8 @@ asserteq(big(1) / big(3), setmetatable({minExp=-1, maxExp=-1, repeatTo=-1, repea
 asserteq(big('10', 2), big(2))
 asserteq(big('10', 2), big(2, 2))
 
+print(tolua(big'1':toBase(2)))
+print(tolua(big('1.1', 2)))
+print(tolua(big'1.5':toBase(2)))
+print(tolua(big'2':toBase(2)))
+asserteq(big('1.1', 2), big'1.5')

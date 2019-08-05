@@ -375,6 +375,7 @@ end
 
 function BigNumber:shiftLeft(n)
 	local result = BigNumber()
+	result.base = self.base
 	result.negative = self.negative
 	result.nan = self.nan
 	result.infinity = self.infinity
@@ -387,11 +388,37 @@ function BigNumber:shiftLeft(n)
 			result[k+n] = self[k]
 		end
 	end
+	result:removeExtraZeroes()
 	return result
 end
 function BigNumber:shiftRight(n)
 	return self:shiftLeft(-n)
 end
+
+function BigNumber:truncMinExp(newMinExp)
+	local result = BigNumber(self)
+	for k,v in pairs(result) do
+		if type(k) == 'number' and k < newMinExp then
+			result[k] = nil
+		end
+	end
+	result.minExp = newMinExp
+	result:removeExtraZeroes()
+	return result
+end
+
+function BigNumber:truncMaxExp(newMaxExp)
+	local result = BigNumber(self)
+	for k,v in pairs(result) do
+		if type(k) == 'number' and k > newMaxExp then
+			result[k] = nil
+		end
+	end
+	result.maxExp = newMaxExp
+	result:removeExtraZeroes()
+	return result
+end
+
 
 function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	if not BigNumber.is(a) then a = BigNumber(a) end
@@ -540,31 +567,48 @@ function BigNumber.intPow_simple(a,b)
 	return c
 end
 
--- returns a table of digits, with the 0's digit in [1], and the n'th digit in [n+1]
--- TODO bignumbers of arbitrary bases
+-- returns a table of digits, with the 0's digit in [0], and the n'th digit in [n]
 function BigNumber.toBase(n, base)
 	assert(base > 1, "can't set to a base of 1 or lower")
 	
 	n = BigNumber(n)
 	if n.base == base then return n end
+
 --	assert(n.minExp == 0, "can only handle integers, but got a minExp "..n.minExp)	-- can't handle fractions yet
 
 	-- construct 'p' as value 'base' in base 'n.base'
 	-- don't rely on 'toBase' to convert it -- or we'll get a recursive call
 	local p = BigNumber(base, n.base)
-	
+
+	local orign = n
 	local result = BigNumber()
 	result.base = base
 	result.minExp = 0
 	local i = 0
 	local b
-	while n > BigNumber(0, n.base) do
+	local zero = BigNumber(0, n.base)
+	while n > zero do
 		n, b = n:intdiv(p)
+		n = n:truncMinExp(0)
 		result[i] = b:tonumber()
 		result.maxExp = i
 		i = i + 1
 	end
-	result:removeTrailingZeroes()
+	
+	local f = orign:truncMaxExp(-1)
+	if f > 0 then
+		local i = -1
+		f = f * p
+		while f > 0 do
+			result[i] = (f:truncMinExp(0) % p):tonumber()
+			f = (f - result[i]) * p
+			result.minExp = i
+			i = i - 1
+		end
+	end
+	
+	result:removeExtraZeroes()
+	
 	return result
 end
 
@@ -641,6 +685,18 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 		if a:isZero() then return BigNumber.constant.nan end
 		return BigNumber{infinity=true, negative=a.negative}
 	end
+
+	-- TODO decimal division, especially picking the # of digits of accuracy
+	local aMinExp = 0
+	-- [[
+	local aMinExp = a.minExp
+	if aMinExp < 0 then a = a:shiftRight(aMinExp) else aMinExp = 0 end
+	--]]
+	-- [[
+	local bMinExp = b.minExp
+	if bMinExp < 0 then b = b:shiftRight(bMinExp) else bMinExp = 0 end
+	--]]
+
 	local dividendDigits = BigNumber(a)
 	local place = dividendDigits.maxExp or 0 
 	local dividendCurrentDigits = BigNumber(dividendDigits[place], a.base)	-- most significant digit
@@ -700,6 +756,15 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 		results.repeatFrom = repeatFrom
 		results.repeatTo = repeatTo
 	end
+
+	-- [[
+	local cMinExp = aMinExp - bMinExp
+	if cMinExp ~= 0 then
+		results = results:shiftLeft(cMinExp)
+	end
+	results:removeExtraZeroes()
+	--]]
+
 	return results, dividendCurrentDigits
 end
 
@@ -791,7 +856,7 @@ function BigNumber.tonumber(n)
 	local sum = 0
 	for i=n.maxExp,0,-1 do
 		sum = sum * n.base
-		sum = sum + n[i]
+		sum = sum + (n[i] or 0)
 	end
 	if n.negative then sum = -sum end
 	return sum
