@@ -6,17 +6,17 @@ local math = require 'ext.math'
 
 local BigNumber = class()
 
+BigNumber.negative = false
+BigNumber.nan = false
+BigNumber.infinity = false
+BigNumber.base = 10
+
 function BigNumber:init(n, base)
-	self.negative = false
-	self.nan = false
-	self.infinity = false
-	self.repeatFrom = nil
-	self.repeatTo = nil
 -- hmm... this causes errors in longIntDiv
 -- but without this I can't make the assertion in toBase() that we are getting an integer	
 --	self.minExp = 0
 --	self.maxExp = 0
-	self.base = base or 10
+	self.base = base
 	assert(self.base > 1, "can't set to a base of 1 or lower")
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
@@ -25,27 +25,28 @@ function BigNumber:init(n, base)
 			n = n:sub(2)
 			self.negative = true
 		end
-		for i=1,#n do
-			self[i-1] = tonumber(n:sub(-i,-i), self.base)
+		local d = n:find'%.'
+		local found = d
+		d = d or #n+1
+		for i=1,d-1 do
+			local v = number.todigit(n:sub(i,i))
+			assert(v >= 0 and v < self.base)
+			self[d-1-i] = math.floor(v)
 		end
-		self.minExp = 0
-		self.maxExp = #n-1
-		self:removeLeadingZeroes()
+		self.maxExp = d-1
+		if found then
+			for i=d+1,#n do
+				local v = number.todigit(n:sub(i,i))
+				assert(v >= 0 and v < self.base)
+				self[d-i] = math.floor(v)
+			end
+			self.minExp = d-#n
+		else
+			self.minExp = 0
+		end
 	elseif type(n) == 'number' then
 --[[ original integer-only code
-		n = math.floor(n)
-		if n < 0 then
-				self.negative = true
-				n = -n
-		end
-		local i = 0
-		while n > 0 do
-				self[i] = n % self.base
-				n = (n - self[i]) / self.base
-				self.minExp = 0
-				self.maxExp = i
-				i = i + 1
-		end
+
 --]]
 -- [[ my attempt for decimal numbers	
 		if n < 0 then
@@ -61,30 +62,28 @@ function BigNumber:init(n, base)
 		-- then use toBase to convert it to whatever base is desired
 		-- and change that code to take decimals (and repeating decimals) into account
 		if n > 0 then
-			local i = math.floor(math.log(n+1, self.base))
-			self.minExp = i
-			self.maxExp = i
-			local p = self.base^i
-			while n > 0 do
-				local d = math.floor((n / p) % self.base)
-				if not math.isfinite(d) then 
-					self.trailsoff = true
-					break 
+			local f = math.floor(n)
+			local i = 0
+			self.minExp = 0
+			while f > 0 do
+				self[i] = f % self.base
+				f = math.floor((f - self[i]) / self.base)
+				self.maxExp = i
+				i = i + 1
+			end
+			local d = n - math.floor(n)
+			if d > 0 then
+				d = d * self.base
+				i = -1
+				while d > 0 do
+					self[i] = math.floor(d) % self.base
+					d = (d - self[i]) * self.base
+					self.minExp = i
+					i = i - 1
 				end
-				self[i] = d 
-				n = n - d * p
-				p = p / self.base
-				self.minExp = i
-				i = i - 1
 			end
-			
-			-- TODO remove the constraint that minExp cannot be > 0
-			for j=i,0,-1 do
-				self[j] = 0
-			end
-			self.minExp = math.min(self.minExp, 0)
 		end
---]]	
+--]]
 	elseif type(n) == 'table' then
 		if BigNumber.is(n) then
 			for k,v in pairs(n) do
@@ -94,26 +93,35 @@ function BigNumber:init(n, base)
 			for i=1,#n do
 				self[i-1] = tonumber(n[i]) % self.base
 			end
-			self.minExp = 0
 			self.maxExp = #n-1
+			
+			local i = 0
+			self.minExp = i-1
+			while n[i] do
+				self[i-1] = n[i]
+				self.minExp = i-1
+				i = i - 1
+			end
+			
 			self.negative = n.negative or false 
 			self.nan = n.nan or false
 			self.infinity = n.infinity or false
-			
-			--self.base = n.base or self.base
-			if self.base ~= n.base then
+		
+			local nbase = n.base or self.base
+			--self.base = nbase or self.base
+			if self.base ~= nbase then
 				if self.nan or self.infinity then
-					self.base = n.base
+					self.base = nbase
 				else
 					error("now you need to convert toBase in-place on constructor")
 				end
 			end
 		end
-		self:removeLeadingZeroes()
 	elseif n == nil then
 	else
 		error("don't know how to handle the input of type "..type(n))
 	end
+	self:removeExtraZeroes()	
 end
 
 function BigNumber.__sub(a,b)
@@ -121,10 +129,10 @@ function BigNumber.__sub(a,b)
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
-	if a.infinite then
-		if b.infinite then
+	if a.infinity then
+		if b.infinity then
 			if a.negative == b.negative then 
-				return BigNumber{infinite = true, negative = a.negative}
+				return BigNumber{infinity = true, negative = a.negative}
 			else
 				return BigNumber.nan
 			end
@@ -169,15 +177,29 @@ function BigNumber.__sub(a,b)
 	return c
 end
 
+function BigNumber:removeExtraZeroes()
+	self:removeLeadingZeroes()
+	self:removeTrailingZeroes()
+end
+
 function BigNumber:removeLeadingZeroes()
-	-- remove leading zeroes
 	while true do
 		self:calcMaxExp()
-		assert(self:isZero() or self[self.maxExp] ~= nil)
+		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
 		self[self.maxExp] = nil
 	end
 	self:calcMaxExp()
+end
+
+function BigNumber:removeTrailingZeroes()
+	while true do
+		self:calcMinExp()
+		assert(not self:isFinite() or self:isZero() or self[self.minExp] ~= nil)
+		if self[self.minExp] ~= 0 then break end
+		self[self.minExp] = nil
+	end
+	self:calcMinExp()
 end
 
 -- in-place
@@ -215,10 +237,10 @@ function BigNumber.__add(a,b)
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.nan end
-	if a.infinite then
-		if b.infinite then
+	if a.infinity then
+		if b.infinity then
 			if a.negative == b.negative then 
-				return BigNumber{infinite = true, negative = a.negative}
+				return BigNumber{infinity = true, negative = a.negative}
 			else
 				return BigNumber.nan
 			end
@@ -235,7 +257,7 @@ function BigNumber.__add(a,b)
 	if b:isZero() then return a end
 	local c = BigNumber()
 	c.negative = a.negative	-- == b.negative
-	c.minExp = 0
+	c.minExp = math.min(a.minExp, b.minExp)
 	if a.repeatFrom then c.minExp = math.min(c.minExp, a.repeatFrom+1) end
 	if b.repeatFrom then c.minExp = math.min(c.minExp, b.repeatFrom+1) end
 	c.base = a.base
@@ -351,6 +373,26 @@ function BigNumber.__unm(a)
 	return a
 end
 
+function BigNumber:shiftLeft(n)
+	local result = BigNumber()
+	result.negative = self.negative
+	result.nan = self.nan
+	result.infinity = self.infinity
+	if self.minExp then result.minExp = self.minExp + n end
+	if self.maxExp then result.maxExp = self.maxExp + n end
+	if self.repeatFrom then result.repeatFrom = self.repeatFrom + n end
+	if self.repeatTo then result.repeatTo = self.repeatTo + n end
+	for k,v in pairs(self) do
+		if type(k) == 'number' then
+			result[k+n] = self[k]
+		end
+	end
+	return result
+end
+function BigNumber:shiftRight(n)
+	return self:shiftLeft(-n)
+end
+
 function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
@@ -361,6 +403,12 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	if b.negative then
 		b = -b
 	end
+	
+	local aMinExp = a.minExp
+	local bMinExp = b.minExp
+	if aMinExp ~= 0 then a = a:shiftLeft(-aMinExp) end
+	if bMinExp ~= 0 then b = b:shiftLeft(-bMinExp) end
+	
 	local c = BigNumber()
 	c.base = a.base
 	local counter = BigNumber()
@@ -369,6 +417,12 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 		counter = counter + BigNumber(1)
 	end
 	c.negative = a.negative ~= bWasNegative
+	
+	local cMinExp = aMinExp + bMinExp
+	if cMinExp ~= 0 then
+		c = c:shiftRight(-cMinExp)
+	end
+	c:removeExtraZeroes()
 	return c
 end
 function BigNumber.longMul(a,b)
@@ -380,6 +434,12 @@ function BigNumber.longMul(a,b)
 	local c = BigNumber()
 	c.base = a.base
 	c.negative = a.negative ~= b.negative
+	
+	local aMinExp = a.minExp
+	local bMinExp = b.minExp
+	if aMinExp ~= 0 then a = a:shiftRight(aMinExp) end
+	if bMinExp ~= 0 then b = b:shiftRight(bMinExp) end
+	
 	c.minExp = 0
 	c.maxExp = a.maxExp + b.maxExp
 	for i=0,c.maxExp do
@@ -395,6 +455,13 @@ function BigNumber.longMul(a,b)
 	end
 	-- 2) apply carries
 	c:carry()
+	
+	local cMinExp = aMinExp + bMinExp
+	if cMinExp ~= 0 then
+		c = c:shiftLeft(cMinExp)
+	end
+	c:removeExtraZeroes()
+	
 	return c
 end
 BigNumber.__mul = BigNumber.longMul
@@ -497,6 +564,7 @@ function BigNumber.toBase(n, base)
 		result.maxExp = i
 		i = i + 1
 	end
+	result:removeTrailingZeroes()
 	return result
 end
 
@@ -547,15 +615,12 @@ end
 BigNumber.intpow = BigNumber.intPow_binDigits
 BigNumber.__pow = BigNumber.intpow
 
-BigNumber.nan = BigNumber()
-BigNumber.nan.nan = true
-
 function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
-	if b.maxExp == nil then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
+	if b.maxExp == nil then return BigNumber.constant.nan end
 	local n = BigNumber(b)
 	local c = BigNumber(0, a.base)
 	c.base = a.base
@@ -571,9 +636,9 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b:isZero() then
-		if a:isZero() then return BigNumber.nan end
+		if a:isZero() then return BigNumber.constant.nan end
 		return BigNumber{infinity=true, negative=a.negative}
 	end
 	local dividendDigits = BigNumber(a)
@@ -662,6 +727,7 @@ function BigNumber.__eq(a,b)
 	if a.nan or b.nan then return false end
 	if a.maxExp == nil and b.maxExp == nil then return true end	--negative zero equals positive zero
 	if a.maxExp ~= b.maxExp then return false end
+	if a.minExp ~= b.minExp then return false end
 	if a.negative ~= b.negative then return false end
 	for i=0,a.maxExp do
 		if a[i] ~= b[i] then return false end
@@ -689,9 +755,9 @@ function BigNumber.__lt(a,b)
 	if b.negative and not a.negative then return false end
 	if a.maxExp < b.maxExp then return not a.negative end
 	if a.maxExp > b.maxExp then return a.negative end
-	for i=a.maxExp,0,-1 do
-		if a[i] < b[i] then return not a.negative end
-		if a[i] > b[i] then return a.negative end
+	for i=a.maxExp,math.min(a.minExp, b.minExp),-1 do
+		if (a[i] or 0) < (b[i] or 0) then return not a.negative end
+		if (a[i] or 0) > (b[i] or 0) then return a.negative end
 	end
 	return false -- equal
 end
@@ -713,9 +779,9 @@ function BigNumber.__le(a,b)
 	if b.negative and not a.negative then return false end
 	if a.maxExp < b.maxExp then return not a.negative end
 	if a.maxExp > b.maxExp then return a.negative end
-	for i=a.maxExp,0,-1 do
-		if a[i] < b[i] then return not a.negative end
-		if a[i] > b[i] then return a.negative end
+	for i=a.maxExp,math.min(a.minExp, b.minExp),-1 do
+		if (a[i] or 0) < (b[i] or 0) then return not a.negative end
+		if (a[i] or 0) > (b[i] or 0) then return a.negative end
 	end
 	return true -- equal
 end
@@ -779,7 +845,7 @@ function BigNumber.__tostring(n)
 	if n:isZero() then return '0' end
 	local s = ''
 	for i=n.maxExp,0,-1 do
-		s = s .. number.charfor(math.floor(n[i]))
+		s = s .. number.charfor(math.floor(n[i] or 0))
 	end
 	if n.minExp < 0 then
 		s = s .. '.'
@@ -791,15 +857,7 @@ function BigNumber.__tostring(n)
 	end
 	if n.negative then s = '-'..s end
 	if n.base ~= 10 then
-		if n.base == 2 then
-			s = s .. 'b'
-		elseif n.base == 8 then
-			s = s .. 'o'
-		elseif n.base == 16 then
-			s = s .. 'h'
-		else
-			s = s .. '_'..n.base
-		end
+		s = s .. '_'..n.base
 	end
 	if n.trailsoff then
 		s = s .. '...'
@@ -835,6 +893,21 @@ function BigNumber:sumOfDigits()
 	return self:digits():sum()
 end
 
-function BigNumber:isZero() return not self.maxExp end
+function BigNumber:isZero() 
+	return not self.maxExp 
+end
+
+function BigNumber:isFinite()
+	if self.nan then return false end
+	if self.infinity then return false end
+	return true
+end
+
+-- hmm, need a different name
+BigNumber.constant = {
+	nan = BigNumber{nan=true},
+	infinity = BigNumber{infinity=true},
+}
+
 
 return BigNumber
