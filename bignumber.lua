@@ -6,6 +6,7 @@ local math = require 'ext.math'
 
 local BigNumber = class()
 
+-- default values
 BigNumber.negative = false
 BigNumber.nan = false
 BigNumber.infinity = false
@@ -85,37 +86,8 @@ function BigNumber:init(n, base)
 		end
 --]]
 	elseif type(n) == 'table' then
-		if BigNumber.is(n) then
-			for k,v in pairs(n) do
-				self[k] = v
-			end
-		else
-			for i=1,#n do
-				self[i-1] = tonumber(n[i]) % self.base
-			end
-			self.maxExp = #n-1
-			
-			local i = 0
-			self.minExp = i-1
-			while n[i] do
-				self[i-1] = n[i]
-				self.minExp = i-1
-				i = i - 1
-			end
-			
-			self.negative = n.negative or false 
-			self.nan = n.nan or false
-			self.infinity = n.infinity or false
-		
-			local nbase = n.base or self.base
-			--self.base = nbase or self.base
-			if self.base ~= nbase then
-				if self.nan or self.infinity then
-					self.base = nbase
-				else
-					error("now you need to convert toBase in-place on constructor")
-				end
-			end
+		for k,v in pairs(n) do
+			self[k] = v
 		end
 	elseif n == nil then
 	else
@@ -128,13 +100,17 @@ function BigNumber.__sub(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
 		if b.infinity then
 			if a.negative == b.negative then 
-				return BigNumber{infinity = true, negative = a.negative}
+				if a.negative then
+					return -BigNumber.constant.infinity
+				else
+					return BigNumber.constant.infinity
+				end
 			else
-				return BigNumber.nan
+				return BigNumber.constant.nan
 			end
 		end
 	end
@@ -221,28 +197,40 @@ function BigNumber:carry()
 	self:removeLeadingZeroes()
 end
 
+local function gcd(a,b)
+	assert(a >= 1)
+	assert(b >= 1)
+	repeat
+		a, b = b, a % b
+	until b == 0
+	return a
+end
+
+local function lcm(a,b)
+	if a == 0 then return 0 end
+	if b == 0 then return 0 end
+	return a * b / gcd(a,b)
+end
+
 --[[
-an..a0.a-1..a(1-p)[a(-p)..a(-q)]
-+ same thing with b's ...
-a = sum_i=0..n B^i a_i + 10^(1-p) * sum_i=p..q a^i / (9...9) (p-q 9's)
-b = same thing
-a + b = 
+Thanks Sean for the help on this one
 --]]
-
-
-
 function BigNumber.__add(a,b)
 --print('BigNumber.__add',a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
 		if b.infinity then
 			if a.negative == b.negative then 
-				return BigNumber{infinity = true, negative = a.negative}
+				if a.negative then
+					return -BigNumber.constant.infinity
+				else
+					return BigNumber.constant.infinity
+				end
 			else
-				return BigNumber.nan
+				return BigNumber.constant.nan
 			end
 		end
 	end
@@ -255,104 +243,99 @@ function BigNumber.__add(a,b)
 	end
 	if a:isZero() then return b end
 	if b:isZero() then return a end
+
+	local repeatFrom, repeatTo
+	if a.repeatFrom and b.repeatFrom then
+		a = BigNumber(a)
+		b = BigNumber(b)
+		-- find lcm of #aRep and #bRep
+		-- stretch both to this size
+		-- adjust them
+		local aRep = a:getRepeatAsInteger()
+		local aRepLen = a.maxExp - a.minExp + 1
+		local bRep = b:getRepeatAsInteger()
+		local bRepLen = b.maxExp - b.minExp + 1
+		local lcmab = lcm(aRepLen, bRepLen)	
+		local aRepeatFrom = a.repeatFrom
+		while aRepeatFrom-a.repeatTo+1 < lcmab do
+			a:repeatRepeat()
+		end
+		a.repeatFrom = aRepeatFrom
+		local bRepeatFrom = b.repeatFrom
+		while bRepeatFrom-b.repeatTo+1 < lcmab do
+			b:repeatRepeat()
+		end
+		b.repeatFrom = bRepeatFrom
+		-- so now the repeat of a and b is as long as one another
+		while a.repeatTo < b.repeatTo do
+			b = b:shiftRepeat()
+		end
+		while b.repeatTo < a.repeatTo do
+			a = a:shiftRepeat()
+		end
+		assert(a.repeatFrom == b.repeatFrom)
+		assert(a.repeatTo == b.repeatTo)
+		repeatFrom = a.repeatFrom
+		repeatTo = a.repeatTo
+	elseif a.repeatFrom or b.repeatFrom then
+		local function adjustAtoB(a,b)
+			if b.minExp < a.repeatFrom then
+				a = BigNumber(a)
+				-- prepend
+				while b.minExp < a.repeatFrom do
+					a:repeatRepeat()
+				end
+			end
+			return a
+		end
+		if a.repeatFrom and not b.repeatFrom then
+			a = adjustAtoB(a,b)
+			repeatFrom = a.repeatFrom
+			repeatTo = a.repeatTo
+		elseif b.repeatFrom and not a.repeatFrom then
+			b = adjustAtoB(b,a)
+			repeatFrom = b.repeatFrom
+			repeatTo = b.repeatTo
+		end
+	end
+	
 	local c = BigNumber()
 	c.negative = a.negative	-- == b.negative
 	c.minExp = math.min(a.minExp, b.minExp)
-	if a.repeatFrom then c.minExp = math.min(c.minExp, a.repeatFrom+1) end
-	if b.repeatFrom then c.minExp = math.min(c.minExp, b.repeatFrom+1) end
 	c.base = a.base
 	local carry = 0
 	local i = c.minExp
 	while i <= a.maxExp or i <= b.maxExp or carry > 0 do
 		local digit = (a[i] or 0) + (b[i] or 0) + carry
---		local avalue = 0
---		local bvalue = 0
---		if a.repeatFrom and i > a.repeatFrom then avalue = a[i] or 0 end
---		if b.repeatFrom and i > b.repeatFrom then bvalue = b[i] or 0 end
---		local digit = avalue + bvalue + carry
 		carry = math.floor(digit / a.base)
 		c[i] = digit % a.base
 		c.maxExp = i
 		i = i + 1
 	end
 
--- and now for something completely different
-	if a.repeatFrom or b.repeatFrom then
-		local aRep = a:getRepeatAsInteger()
-		local bRep = b:getRepeatAsInteger()
-print('aRep', aRep)
-print('bRep', bRep)
-		-- next pad up whichever has the larger (smaller abs) repeatTo until they're both even
-		if a.repeatFrom and b.repeatFrom then
-print'padding to align'
-			if a.repeatFrom < b.repeatFrom then
-print'padding a'				
-				for i=a.minExp, a.maxExp do
-					a[i+b.repeatFrom-a.repeatFrom] = a[i]
-				end
-				for i=0,minExp-1 do
-					a[i] = 0
-				end
-			elseif b.repeatFrom < a.repeatFrom then
-print'padding b'				
-				for i=b.minExp, b.maxExp do
-					b[i+a.repeatFrom-b.repeatFrom] = b[i]
-				end
-				for i=0,minExp-1 do
-					b[i] = 0
-				end
-			end
-		end
-print('aRep', aRep)
-print('bRep', bRep)
-local aNines
-if aRep == 0 then 
-print('aNines is 1')
-	aNines = 1
-else 
-	aNines = range(aRep.maxExp+1):map(function(i) return a.base-1 end)
-print('aNines is from '..aNines:concat', ')	
-	aNines.base = a.base
-	aNines = BigNumber(aNines)
-end
-print('aNines',aNines)
-local bNines
-if bRep == 0 then
-print('bNines is 1')
-	bNines = 1
-else
-	bNines = range(bRep.maxExp+1):map(function(i) return b.base-1 end)
-print('bNines is from '..bNines:concat', ')	
-	bNines.base = b.base
-	bNines = BigNumber(bNines)
-end
-print('bNines',bNines)
--- TODO denom, aNines, and bNines, can all be reduced by the # of nines they have in common
-local cRep = (aRep * bNines + bRep * aNines) / (aNines * bNines) 
-print('cRep', cRep, require'ext.tolua'(cRep))
--- what happens if cRep is bigger than aRep or bRep?  where do the extra digits go?  are they repeated or not?		
-		local repeatTo
-		if a.repeatTo and not b.repeatTo then 
-			repeatTo = a.repeatTo
-		elseif b.repeatTo and not a.repeatTo then
-			repeatTo = b.repeatTo
-		else
-			repeatTo = math.min(a.repeatTo, b.repeatTo)
-		end
-print('repeatTo',repeatTo)		
-print('c.minExp', c.minExp, 'c.maxExp', c.maxExp)
-		for i=c.minExp, c.maxExp do
-			c[i+repeatTo] = cRep[i]
-print('i',i, 'i+repeatTo', i+repeatTo, 'c[i+repeatTo]', c[i+repeatTo])
-		end
-		c.repeatTo = repeatTo
-		c.repeatFrom = repeatTo + (c.maxExp - c.minExp)
-		assert(c.minExp >= c.repeatTo)
-		c.minExp = c.repeatTo
-print('c', c)
-print('c', require'ext.tolua'(c))
-	end
+	c.repeatFrom = repeatFrom
+	c.repeatTo = repeatTo
+	
 	return c
+end
+
+-- shift the repeat pattern once to the right
+function BigNumber:shiftRepeat()
+	assert(self.minExp == self.repeatTo)
+	local replen = self.repeatFrom - self.repeatTo + 1
+	self[self.minExp-1] = assert(self[self.minExp-1+replen])
+	self.minExp = self.minExp - 1
+	self.repeatFrom = self.repeatFrom - 1
+	self.repeatTo = self.repeatTo - 1
+	return self
+end
+
+-- duplicate the repeating pattern and adjust the repeat range
+function BigNumber:repeatRepeat()
+	local replen = self.repeatFrom - self.repeatTo + 1
+	for i=1,replen do
+		self:shiftRepeat()
+	end
 end
 
 function BigNumber:getRepeatAsInteger()
@@ -361,7 +344,7 @@ function BigNumber:getRepeatAsInteger()
 		return BigNumber(0, self.base)
 	end
 	local digits = range(self.repeatTo, self.repeatFrom):mapi(function(i)
-		return self[i], i-self.repeatTo+1
+		return self[i], i-self.repeatTo
 	end)
 	digits.base = self.base
 	return BigNumber(digits)
@@ -456,7 +439,7 @@ function BigNumber.longMul(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local c = BigNumber()
 	c.base = a.base
@@ -512,8 +495,8 @@ function BigNumber.intPow_binomial(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
-	if b:isZero() then return BigNumber{1, base=a.base} end
+	if a.nan or b.nan then return BigNumber.constant.nan end
+	if b:isZero() then return BigNumber{[0]=1, base=a.base} end
 	if a:isZero() then return BigNumber{base=a.base} end
 	if b.negative then error('no support for negative powers!') end
 	--'b' iterators cycling through the coefficients of 'a'
@@ -555,7 +538,7 @@ function BigNumber.intPow_simple(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.negative then error('no support for negative powers!') end
 	local c = BigNumber(1)
 	c.base = a.base
@@ -632,7 +615,7 @@ end
 function BigNumber.intPow_binDigits(a,b)	
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
-	if a.nan or b.nan then return BigNumber.nan end
+	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.negative then error('no support for negative powers!') end
 
 	local bb = b:toBase(2)	-- binary form of 'b'. TODO arbitrary base bignumbers
@@ -683,7 +666,11 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b:isZero() then
 		if a:isZero() then return BigNumber.constant.nan end
-		return BigNumber{infinity=true, negative=a.negative}
+		if a.negative then
+			return -BigNumber.constant.infinity
+		else
+			return BigNumber.constant.infinity
+		end	
 	end
 
 	-- TODO decimal division, especially picking the # of digits of accuracy
@@ -794,6 +781,8 @@ function BigNumber.__eq(a,b)
 	if a.maxExp ~= b.maxExp then return false end
 	if a.minExp ~= b.minExp then return false end
 	if a.negative ~= b.negative then return false end
+	if a.repeatFrom ~= b.repeatFrom then return false end
+	if a.repeatTo ~= b.repeatTo then return false end
 	for i=0,a.maxExp do
 		if a[i] ~= b[i] then return false end
 	end

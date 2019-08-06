@@ -19,14 +19,14 @@ asserteq(big'2', big(2))
 asserteq(big'10', big(10))
 
 -- construct by string vs table
-asserteq(big'1', big{1})
-asserteq(big'2', big{2})
-asserteq(big'10', big{0,1})
+asserteq(big'1', big{[0]=1})
+asserteq(big'2', big{[0]=2})
+asserteq(big'10', big{[0]=0,1})
 
 -- construct by number vs table
-asserteq(big(1), big{1})
-asserteq(big(2), big{2})
-asserteq(big(10), big{0,1})
+asserteq(big(1), big{[0]=1})
+asserteq(big(2), big{[0]=2})
+asserteq(big(10), big{[0]=0,1})
 
 -- how should trailing zeros and minexp be handled?
 asserteq(big'10'.maxExp, 1)
@@ -35,8 +35,8 @@ asserteq(big'10'.minExp, 1)
 asserteq(big(10).maxExp, 1)
 asserteq(big(10).minExp, 1)
 
-asserteq(big{0,1}.maxExp, 1)
-asserteq(big{0,1}.minExp, 1)
+asserteq(big{[0]=0,1}.maxExp, 1)
+asserteq(big{[0]=0,1}.minExp, 1)
 
 -- unm
 asserteq(-big(10), big(-10))
@@ -81,8 +81,8 @@ asserteq(-big(-1.5), big(1.5))
 
 -- add
 -- using construction of numbers for decimals is not always accurate
-asserteq(big'1.2', big{1, [0]=2})
-asserteq(big'1.3', big{1, [0]=3})
+asserteq(big'1.2', big{[0]=1, [-1]=2})
+asserteq(big'1.3', big{[0]=1, [-1]=3})
 asserteq(big'1.2' + big'1.3', big'2.5')
 
 -- mul
@@ -96,16 +96,19 @@ asserteq(big(1) / big(5), big'.2')
 -- TODO constructor for repeated decimals?
 asserteq(big(1) / big(7), setmetatable({minExp=-6, maxExp=-1, repeatTo=-6, repeatFrom=-1, [-1]=1, [-2]=4, [-3]=2, [-4]=8, [-5]=5, [-6]=7}, big))
 asserteq(big(1) / big(3), setmetatable({minExp=-1, maxExp=-1, repeatTo=-1, repeatFrom=-1, [-1]=3}, big))
+-- another way to input repeating decimals:
+asserteq(big(1) / big(3), big{repeatTo=1, repeatFrom=1, 3}:shiftRight(2))
+asserteq(big(1) / big(7), big{repeatTo=1, repeatFrom=6, 7, 5, 8, 2, 4, 1}:shiftRight(7))
 
--- base 2 integer operations
+-- repeating fractions
+
+-- add
+print((big(1)/big(3)) / (big(1)/big(3)))
+
+-- base 2
 
 -- constructors
 
 asserteq(big('10', 2), big(2))
-asserteq(big('10', 2), big(2, 2))
-
-print(tolua(big'1':toBase(2)))
-print(tolua(big('1.1', 2)))
-print(tolua(big'1.5':toBase(2)))
-print(tolua(big'2':toBase(2)))
+asserteq(big('10', 2), big(2):toBase(2))
 asserteq(big('1.1', 2), big'1.5')
