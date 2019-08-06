@@ -213,7 +213,7 @@ local function lcm(a,b)
 end
 
 --[[
-Thanks Sean for the help on this one
+Thanks Sean Moore for the help on this one
 --]]
 function BigNumber.__add(a,b)
 --print('BigNumber.__add',a,b)
@@ -251,11 +251,10 @@ function BigNumber.__add(a,b)
 		-- find lcm of #aRep and #bRep
 		-- stretch both to this size
 		-- adjust them
-		local aRep = a:getRepeatAsInteger()
-		local aRepLen = a.maxExp - a.minExp + 1
-		local bRep = b:getRepeatAsInteger()
-		local bRepLen = b.maxExp - b.minExp + 1
+		local aRepLen = a.repeatFrom - a.repeatTo + 1
+		local bRepLen = b.repeatFrom - b.repeatTo + 1
 		local lcmab = lcm(aRepLen, bRepLen)	
+		
 		local aRepeatFrom = a.repeatFrom
 		while aRepeatFrom-a.repeatTo+1 < lcmab do
 			a:repeatRepeat()
@@ -315,7 +314,30 @@ function BigNumber.__add(a,b)
 
 	c.repeatFrom = repeatFrom
 	c.repeatTo = repeatTo
-	
+
+	if c.repeatFrom or c.repeatTo then
+		assert(c.repeatFrom and c.repeatTo)
+		assert(c.repeatTo <= c.repeatFrom)
+		local all = true
+		for i=c.repeatTo,c.repeatFrom do
+			if c[i] ~= c.base-1 then
+				all = false
+				break
+			end
+		end
+		-- all repeating 
+		if all then
+			local minExp = c.repeatFrom+1
+			for i=c.repeatTo,c.repeatFrom do
+				c[i] = nil
+			end
+			c.repeatFrom = nil
+			c.repeatTo = nil
+			c:removeExtraZeroes()
+			c = c + BigNumber{[minExp]=1, base=c.base}
+		end
+	end
+
 	return c
 end
 

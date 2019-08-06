@@ -103,7 +103,28 @@ asserteq(big(1) / big(7), big{repeatTo=1, repeatFrom=6, 7, 5, 8, 2, 4, 1}:shiftR
 -- repeating fractions
 
 -- add
-print((big(1)/big(3)) / (big(1)/big(3)))
+local _1_3 = big(1) / big(3)
+asserteq(_1_3 + _1_3 + _1_3, big(1))
+
+local _31_99 = big(31) / big(99)
+local _321_999 = big(321) / big(999)
+asserteq(_31_99 + _321_999, big(634452) / big(999999))
+
+-- adding of one repeating and one non-repeating
+asserteq(big(352)/big(1000) + big(634452) / big(999999000), big{repeatTo=-9, repeatFrom=-4, [-1]=3, [-2]=5, [-3]=2, [-4]=6, [-5]=3, [-6]=4, [-7]=4, [-8]=5, [-9]=2})
+
+-- requires lcm between [2 digits] and [3 digits], and shifting the 2-dgitis by 1
+asserteq(big(31)/big(990) + _321_999, big{repeatTo=-7, repeatFrom=-2, [-1]=3, [-2]=5, [-3]=2, [-4]=6, [-5]=3, [-6]=4, [-7]=4})
+
+-- TODO require a shifting of >lcm=6 digits from either side
+
+
+-- TODO FIXME dividing (even by 1000) removes the repeatFrom/repeatTo
+
+
+-- divide
+asserteq(_1_3 / _1_3, big(1))
+os.exit()
 
 -- base 2
 
