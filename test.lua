@@ -1,10 +1,10 @@
 #!/usr/bin/env lua
 require 'ext'
 local big = require 'bignumber'
-local function asserteq(a,b)
+local function asserteq(a,b, msg)
 	print(a..' == '.. b)
 	if a ~= b then
-		error("expected "..a.." to equal "..b)
+		error("expected "..a.." to equal "..b..(msg and ': '..msg or ''))
 	end
 end
 
@@ -39,21 +39,30 @@ asserteq(big{[0]=0,1}.maxExp, 1)
 asserteq(big{[0]=0,1}.minExp, 1)
 
 -- unm
-asserteq(-big(10), big(-10))
-asserteq(-big(-10), big(10))
-asserteq(-big(0), big(0))
+for i=-10,10 do
+	asserteq(-big(i), big(-i))
+end
 
 -- add
-asserteq(big(1) + big(1), big(2))
+for i=-10,10 do
+	for j=-10,10 do
+		asserteq(big(i) + big(j), big(i+j), big(i)..' + '..big(j))
+	end
+end
 
 -- sub
-asserteq(big(3) - big(3), big(0))
-asserteq(big(10) - big(3), big(7))
-asserteq(big(3) - big(10), big(-7))
+for i=-10,10 do
+	for j=-10,10 do
+		asserteq(big(i) - big(j), big(i-j))
+	end
+end
 
 -- multiply
-asserteq(big(1) * big(1), big(1))
-asserteq(big(2) * big(2), big(4))
+for i=-10,10 do
+	for j=-10,10 do
+		asserteq(big(i) * big(j), big(i*j))
+	end
+end
 
 -- divide
 assert((big(0) / big(0)).nan)
@@ -66,10 +75,11 @@ asserteq(big(10) / big(5), big(2))
 asserteq(big(10) % big(3), big(1))
 
 -- pow
-asserteq(big(2) ^ big(10), big(1024))
-asserteq(big(3) ^ big(7), big'2187')
-asserteq(big(3) ^ big(8), big'6561')
-asserteq(big(3) ^ big(9), big'19683')
+for i=-10,10 do
+	for j=0,10 do
+		asserteq(big(i) ^ big(j), big(i^j))
+	end
+end
 
 -- base 10 decimal operators
 
@@ -91,7 +101,14 @@ asserteq(big'1.2' + big'1.3', big'2.5')
 -- mul
 asserteq(big'1.1' * big'1.1', big'1.21')
 
--- div
+--[[ repeating decimal div .. but needs repeating decimal mul to work
+for i=1,10 do
+	for j=1,10 do
+		asserteq((big(i)/big(j))*big(j), big(i), tostring(big(i))..'/'..tostring(big(j)))
+	end
+end
+--]]
+
 asserteq(big'11' / big'11', big'1')
 asserteq(big'1.1' / big'1.1', big'1')
 

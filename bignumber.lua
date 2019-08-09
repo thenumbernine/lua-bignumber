@@ -276,6 +276,8 @@ function BigNumber.__add(a,b)
 			c = c + BigNumber{[minExp]=1, base=c.base}
 		end
 	end
+	
+	c:removeExtraZeroes()	
 
 	return c
 end
@@ -721,6 +723,8 @@ function BigNumber.intPow_binDigits(a,b)
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.negative then error('no support for negative powers!') end
+	if b:isZero() then return BigNumber(1) end
+	if a:isZero() then return BigNumber(0) end
 
 	local bb = b:toBase(2)	-- binary form of 'b'. TODO arbitrary base bignumbers
 	local res = BigNumber(1):toBase(a.base)
@@ -856,6 +860,8 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	end
 	results:removeExtraZeroes()
 	--]]
+
+	results.negative = a.negative ~= b.negative
 
 	return results, dividendCurrentDigits
 end
