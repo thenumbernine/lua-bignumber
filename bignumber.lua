@@ -315,6 +315,7 @@ function BigNumber.__sub(a,b)
 	if a:isZero() then return -b end
 	if b:isZero() then return a end
 
+	local repeatFrom, repeatTo
 	if a.repeatFrom or b.repeatFrom then
 		a = BigNumber(a)
 		b = BigNumber(b)
