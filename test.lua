@@ -118,13 +118,17 @@ asserteq(big(31)/big(990) + _321_999, big{repeatTo=-7, repeatFrom=-2, [-1]=3, [-
 
 -- TODO require a shifting of >lcm=6 digits from either side
 
+-- sub
+asserteq(big(1) - _1_3, _1_3 + _1_3)
+asserteq(_1_3 - big(1), -_1_3 - _1_3)
+asserteq(big'.1' - _1_3, big{negative=true, repeatFrom=-2, repeatTo=-2, [-1]=2, [-2]=3})
 
+-- div
+asserteq(_1_3/10, big{repeatFrom=-2, repeatTo=-2, [2]=3})
 -- TODO FIXME dividing (even by 1000) removes the repeatFrom/repeatTo
-
 
 -- divide
 asserteq(_1_3 / _1_3, big(1))
-os.exit()
 
 -- base 2
 

@@ -19,6 +19,7 @@ function BigNumber:init(n, base)
 --	self.maxExp = 0
 	self.base = base
 	assert(self.base > 1, "can't set to a base of 1 or lower")
+	-- TODO add repeating fraction construction using []'s in the string
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
 		if n == '0' then return end
@@ -46,10 +47,6 @@ function BigNumber:init(n, base)
 			self.minExp = 0
 		end
 	elseif type(n) == 'number' then
---[[ original integer-only code
-
---]]
--- [[ my attempt for decimal numbers	
 		if n < 0 then
 			self.negative = true
 			n = -n
@@ -84,7 +81,6 @@ function BigNumber:init(n, base)
 				end
 			end
 		end
---]]
 	elseif type(n) == 'table' then
 		for k,v in pairs(n) do
 			self[k] = v
@@ -94,63 +90,6 @@ function BigNumber:init(n, base)
 		error("don't know how to handle the input of type "..type(n))
 	end
 	self:removeExtraZeroes()	
-end
-
-function BigNumber.__sub(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
-	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigNumber.constant.nan end
-	if a.infinity then
-		if b.infinity then
-			if a.negative == b.negative then 
-				if a.negative then
-					return -BigNumber.constant.infinity
-				else
-					return BigNumber.constant.infinity
-				end
-			else
-				return BigNumber.constant.nan
-			end
-		end
-	end
-	-- if signs don't match, treat it like an addition
-	if a.negative ~= b.negative then
-		if a.negative and not b.negative then
-			return -((-a) + b)
-		elseif b.negative and not a.negative then
-			return a + (-b)
-		end
-	end
-	-- signs match, make sure abs biggest is 'a'
-	if a.negative then
-		if b < a then return -(b - a) end
-	else
-		if a < b then return -(b - a) end
-	end
-	if a:isZero() then return -b end
-	if b:isZero() then return a end
-	local c = BigNumber()
-	c.negative = a.negative
-	c.minExp = 0
-	c.base = a.base
-	local borrow = 0	-- or -1
-	local i = 0
-	while i <= a.maxExp or i <= b.maxExp do	-- shouldn't allow borrow past the end
-		local digit = (a[i] or 0) - (b[i] or 0) + borrow
-		borrow = 0
-		if digit < 0 then 
-			borrow = -1
-			digit = digit + a.base
-		end
-		c[i] = digit
-		c.maxExp = i
-		i = i + 1
-	end
-	-- this fails for big(2.5, 2.5) / big(5)
-	assert(borrow == 0)
-	c:removeLeadingZeroes()
-	return c
 end
 
 function BigNumber:removeExtraZeroes()
@@ -216,7 +155,6 @@ end
 Thanks Sean Moore for the help on this one
 --]]
 function BigNumber.__add(a,b)
---print('BigNumber.__add',a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
@@ -234,6 +172,7 @@ function BigNumber.__add(a,b)
 			end
 		end
 	end
+	-- if signs don't match, treat it like an addition
 	if a.negative ~= b.negative then
 		if a.negative and not b.negative then
 			return b - (-a)
@@ -338,6 +277,148 @@ function BigNumber.__add(a,b)
 		end
 	end
 
+	return c
+end
+
+function BigNumber.__sub(a,b)
+	if not BigNumber.is(a) then a = BigNumber(a) end
+	if not BigNumber.is(b) then b = BigNumber(b) end
+	if a.base ~= b.base then b = b:toBase(a.base) end
+	if a.nan or b.nan then return BigNumber.constant.nan end
+	if a.infinity then
+		if b.infinity then
+			if a.negative == b.negative then 
+				if a.negative then
+					return -BigNumber.constant.infinity
+				else
+					return BigNumber.constant.infinity
+				end
+			else
+				return BigNumber.constant.nan
+			end
+		end
+	end
+	-- if signs don't match, treat it like an addition
+	if a.negative ~= b.negative then
+		if a.negative and not b.negative then
+			return -((-a) + b)
+		elseif b.negative and not a.negative then
+			return a + (-b)
+		end
+	end
+	-- signs match, make sure abs biggest is 'a'
+	if a.negative then
+		if b < a then return -(b - a) end
+	else
+		if a < b then return -(b - a) end
+	end
+	if a:isZero() then return -b end
+	if b:isZero() then return a end
+
+	if a.repeatFrom or b.repeatFrom then
+		a = BigNumber(a)
+		b = BigNumber(b)
+
+		-- adjust a, the larger #, by changing 1 => 0[9]
+		if not a.repeatFrom then
+			-- decrement digit a.minExp
+			for i=a.minExp,a.maxExp do
+				a[i] = a[i] - 1
+				if a[i] >= 0 then break end
+				a[i] = a.base - 1
+				assert(i ~= a.maxExp)
+			end
+
+			a.minExp = a.minExp - 1
+			a[a.minExp] = a.base - 1
+			a.repeatFrom = a.minExp
+			a.repeatTo = a.minExp
+		end
+		-- adjust b, the smaller #, by changing 1 => 1[0]
+		if not b.repeatFrom then
+			b.minExp = b.minExp - 1
+			b[b.minExp] = 0
+			b.repeatFrom = b.minExp
+			b.repeatTo = b.minExp
+		end
+		
+		-- find lcm of #aRep and #bRep
+		-- stretch both to this size
+		-- adjust them
+		local aRepLen = a.repeatFrom - a.repeatTo + 1
+		local bRepLen = b.repeatFrom - b.repeatTo + 1
+		local lcmab = lcm(aRepLen, bRepLen)	
+		
+		local aRepeatFrom = a.repeatFrom
+		while aRepeatFrom-a.repeatTo+1 < lcmab do
+			a:repeatRepeat()
+		end
+		a.repeatFrom = aRepeatFrom
+		local bRepeatFrom = b.repeatFrom
+		while bRepeatFrom-b.repeatTo+1 < lcmab do
+			b:repeatRepeat()
+		end
+		b.repeatFrom = bRepeatFrom
+		-- so now the repeat of a and b is as long as one another
+		while a.repeatTo < b.repeatTo do
+			b = b:shiftRepeat()
+		end
+		while b.repeatTo < a.repeatTo do
+			a = a:shiftRepeat()
+		end
+		assert(a.repeatFrom == b.repeatFrom)
+		assert(a.repeatTo == b.repeatTo)
+		repeatFrom = a.repeatFrom
+		repeatTo = a.repeatTo
+	end
+	
+	local c = BigNumber()
+	c.negative = a.negative
+	c.minExp = math.min(a.minExp, b.minExp)
+	c.base = a.base
+	local borrow = 0	-- or -1
+	local i = c.minExp
+	while i <= a.maxExp or i <= b.maxExp do	-- shouldn't allow borrow past the end
+		local digit = (a[i] or 0) - (b[i] or 0) + borrow
+		borrow = 0
+		if digit < 0 then 
+			borrow = -1
+			digit = digit + a.base
+		end
+		c[i] = digit
+		c.maxExp = i
+		i = i + 1
+	end
+	-- this fails for big(2.5, 2.5) / big(5)
+	assert(borrow == 0)
+	
+	c.repeatFrom = repeatFrom
+	c.repeatTo = repeatTo
+
+	if c.repeatFrom or c.repeatTo then
+		assert(c.repeatFrom and c.repeatTo)
+		assert(c.repeatTo <= c.repeatFrom)
+		local all = true
+		for i=c.repeatTo,c.repeatFrom do
+			if c[i] ~= c.base-1 then
+				all = false
+				break
+			end
+		end
+		-- all repeating 
+		if all then
+			local minExp = c.repeatFrom+1
+			for i=c.repeatTo,c.repeatFrom do
+				c[i] = nil
+			end
+			c.repeatFrom = nil
+			c.repeatTo = nil
+			c:removeExtraZeroes()
+			c = c + BigNumber{[minExp]=1, base=c.base}
+		end
+	end
+	
+	c:removeLeadingZeroes()
 	return c
 end
 
