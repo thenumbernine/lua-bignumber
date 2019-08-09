@@ -8,7 +8,6 @@ local function asserteq(a,b, msg)
 	end
 end
 
-
 -- base 10 integer operators
 
 -- constructors

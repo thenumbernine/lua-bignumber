@@ -422,6 +422,7 @@ function BigNumber.__sub(a,b)
 	end
 	
 	c:removeLeadingZeroes()
+	
 	return c
 end
 
@@ -1010,7 +1011,19 @@ function BigNumber.__tostring(n)
 	if n:isZero() then return '0' end
 	local s = ''
 	for i=n.maxExp,0,-1 do
-		s = s .. number.charfor(math.floor(n[i] or 0))
+		if i == n.repeatFrom then s = s .. '[' end
+		if n[i] then
+			s = s .. number.charfor(math.floor(n[i]))
+		else
+			-- repeated decimals starting at positive digits means repeating through 
+			if n.repeatTo and i < n.repeatTo then
+				local j = (i - n.repeatTo) % (n.repeatFrom - n.repeatTo + 1) + n.repeatTo
+				s = s .. number.charfor(math.floor(n[j] or 0))
+			else
+				s = s .. number.charfor(0)
+			end
+		end
+		if i == n.repeatTo then s = s .. ']' end
 	end
 	if n.minExp < 0 then
 		s = s .. '.'
