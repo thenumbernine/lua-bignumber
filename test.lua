@@ -65,8 +65,11 @@ asserteq(big(10) / big(5), big(2))
 -- modulo
 asserteq(big(10) % big(3), big(1))
 
--- exponent
+-- pow
 asserteq(big(2) ^ big(10), big(1024))
+asserteq(big(3) ^ big(7), big'2187')
+asserteq(big(3) ^ big(8), big'6561')
+asserteq(big(3) ^ big(9), big'19683')
 
 -- base 10 decimal operators
 

@@ -726,7 +726,8 @@ function BigNumber.intPow_binDigits(a,b)
 	local res = BigNumber(1):toBase(a.base)
 	local _2ToTheI = BigNumber(1):toBase(a.base)	-- 2^i
 	local aToThe2ToThei = a	--a^(2^i)
-	for i=0,#bb do
+	for i=0,bb.maxExp do
+	--for i=0,#bb do
 		local bbi = bb[i]
 		if bbi == 1 then
 			res = res * aToThe2ToThei
