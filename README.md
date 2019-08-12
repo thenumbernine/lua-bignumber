@@ -10,15 +10,15 @@ It supports
 
 - construction from tables of digits
 
-	`a = big{3,2,1}
+	`a = big{[0]=1,2,3}`
 
 - arbitrary bases (include non-integer)
 
-	`lua -e "big=require'bignumber' print(big(1,2)/big(10))"`
+	`lua -e "big=require'bignumber' print(big(1,2)/big(10,2))"`
 
 gives
 
-	`.0[0011]b`
+	`.0[0011]_2`
 
 which is the base-2 representation of 1/20.
 
@@ -26,10 +26,10 @@ which is the base-2 representation of 1/20.
 - infinity
 - negatives
 - repeating decimal place calculation derived from long division
-- add
-- subtract
-- multiply
-- divide: integer division, long division with/without repeating decimal place calculation
+- addition (including infinite precision addition)
+- subtraction (including infinite precision addition)
+- multiplication
+- division: integer division, long division with/without repeating decimal place calculation
 - power for integers only
 - modulo for integers only
 - factorial
@@ -63,5 +63,6 @@ big(2)^11213-1
 Enjoy!
 
 TODO
-- big:toBase doesn't work for non-integer bases yet
-- conversion from numbers don't take into account repeating digits
+- big:toBase doesn't work for non-integer bases yet.  I do have non-integer number serialization in my lua-ext project, if you're curious what 4 is in base 2.5.
+- Conversion directly from Lua numbers doesn't look for repeating digits
+- specifying an arbitrary precision for operations like multiplication, division, exponents, etc
