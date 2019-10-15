@@ -895,7 +895,7 @@ function BigNumber.__eq(a,b)
 	if a.negative ~= b.negative then return false end
 	if a.repeatFrom ~= b.repeatFrom then return false end
 	if a.repeatTo ~= b.repeatTo then return false end
-	for i=0,a.maxExp do
+	for i=a.minExp,a.maxExp do
 		if a[i] ~= b[i] then return false end
 	end
 	return true
