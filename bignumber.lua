@@ -102,6 +102,7 @@ function BigNumber:removeLeadingZeroes()
 		self:calcMaxExp()
 		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
+		if self.repeatFrom and self.maxExp >= self.repeatFrom then break end
 		self[self.maxExp] = nil
 	end
 	self:calcMaxExp()
@@ -112,6 +113,7 @@ function BigNumber:removeTrailingZeroes()
 		self:calcMinExp()
 		assert(not self:isFinite() or self:isZero() or self[self.minExp] ~= nil)
 		if self[self.minExp] ~= 0 then break end
+		if self.repeatTo and self.minExp <= self.repeatTo then break end
 		self[self.minExp] = nil
 	end
 	self:calcMinExp()
@@ -428,9 +430,26 @@ end
 
 -- shift the repeat pattern once to the right
 function BigNumber:shiftRepeat()
-	assert(self.minExp == self.repeatTo)
+	if self.minExp ~= self.repeatTo then
+		local tolua = require 'ext.tolua'
+		error("expected self.minExp == self.repeatTo "..tolua{
+			['self.minExp'] = self.minExp,
+			['self.repeatFrom'] = self.repeatFrom,
+			['self.repeatTo'] = self.repeatTo,
+		})
+	end
 	local replen = self.repeatFrom - self.repeatTo + 1
-	self[self.minExp-1] = assert(self[self.minExp-1+replen])
+	local i = self.minExp-1+replen
+	if not self[i] then 
+		local tolua = require 'ext.tolua'
+		error("failed to read from element "..i..' '..tolua{
+			['self.minExp'] = self.minExp,
+			['self.repeatFrom'] = self.repeatFrom,
+			['self.repeatTo'] = self.repeatTo,
+			replen = replen,
+		})
+	end
+	self[self.minExp-1] = self[i]
 	self.minExp = self.minExp - 1
 	self.repeatFrom = self.repeatFrom - 1
 	self.repeatTo = self.repeatTo - 1
@@ -542,6 +561,32 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	c:removeExtraZeroes()
 	return c
 end
+
+--[[
+(a + b/99..m) * (c + d/99..n)
+= a * c + b/99..m * c + a + d/99..n + b*d/(99..m * 99..n)
+= a * c
+	+ bbb/99..m
+	+ ddd/99..n
+	+ bbb*ddd* numer of 1/(99..m * 99..n)
+
+for m-rep * n-rep, the results rep is a (m+n)-rep where 
+m+n	(m+n)-rep
+0	0
+1	1
+2	9
+3	81
+4	729
+5	6561
+6	59049
+...
+n	9^(n-1)
+for a 1-rep * 1-rep, resulting rep is 9
+
+This means, with multiplication, repeated digits increases exponentially.
+So in order to implement this with any practicality, time to implement a limit on precision.
+
+--]]
 function BigNumber.longMul(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
@@ -578,7 +623,7 @@ function BigNumber.longMul(a,b)
 		c = c:shiftLeft(cMinExp)
 	end
 	c:removeExtraZeroes()
-	
+
 	return c
 end
 BigNumber.__mul = BigNumber.longMul
