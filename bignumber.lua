@@ -823,6 +823,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if not BigNumber.is(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
+	if a:isZero() then return a end
 	if b:isZero() then
 		if a:isZero() then return BigNumber.constant.nan end
 		if a.negative then
