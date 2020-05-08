@@ -103,6 +103,9 @@ function BigNumber:removeLeadingZeroes()
 		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
 		if self.repeatFrom and self.maxExp >= self.repeatFrom then break end
+		-- TODO
+		-- make sure maxExp is always non-negative, and make sure minExp is always non-positive
+		if self.maxExp < 0 then break end
 		self[self.maxExp] = nil
 	end
 	self:calcMaxExp()
@@ -114,6 +117,7 @@ function BigNumber:removeTrailingZeroes()
 		assert(not self:isFinite() or self:isZero() or self[self.minExp] ~= nil)
 		if self[self.minExp] ~= 0 then break end
 		if self.repeatTo and self.minExp <= self.repeatTo then break end
+		if self.minExp > 0 then break end
 		self[self.minExp] = nil
 	end
 	self:calcMinExp()
@@ -951,7 +955,6 @@ end
 function BigNumber.__lt(a,b)
 	if not BigNumber.is(a) then a = BigNumber(a) end
 	if not BigNumber.is(b) then b = BigNumber(b) end
-	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
@@ -964,6 +967,10 @@ function BigNumber.__lt(a,b)
 	end
 	if a.negative and not b.negative then return true end
 	if b.negative and not a.negative then return false end
+	
+	-- do zero/negative tests before converting number bases
+	if a.base ~= b.base then b = b:toBase(a.base) end
+	
 	if a.maxExp < b.maxExp then return not a.negative end
 	if a.maxExp > b.maxExp then return a.negative end
 	for i=a.maxExp,math.min(a.minExp, b.minExp),-1 do
