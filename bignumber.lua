@@ -161,8 +161,8 @@ end
 Thanks Sean Moore for the help on this one
 --]]
 function BigNumber.__add(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
@@ -289,8 +289,8 @@ function BigNumber.__add(a,b)
 end
 
 function BigNumber.__sub(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
@@ -534,8 +534,8 @@ end
 
 
 function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigInit.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
@@ -592,8 +592,8 @@ So in order to implement this with any practicality, time to implement a limit o
 
 --]]
 function BigNumber.longMul(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
@@ -648,8 +648,8 @@ this one turns out to run *really* slow,
 and breaks for n > 80 or so
 --]]
 function BigNumber.intPow_binomial(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b:isZero() then return BigNumber{[0]=1, base=a.base} end
@@ -691,8 +691,8 @@ function BigNumber.intPow_binomial(a,b)
 	return c
 end
 function BigNumber.intPow_simple(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.negative then error('no support for negative powers!') end
@@ -769,8 +769,8 @@ end
 -- TODO use another power? other than 2?
 -- this runs faster than intPow_simple for n>80 (and they're both quick enough for n<=80)
 function BigNumber.intPow_binDigits(a,b)	
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.negative then error('no support for negative powers!') end
 	if b:isZero() then return BigNumber(1) end
@@ -802,8 +802,8 @@ BigNumber.intpow = BigNumber.intPow_binDigits
 BigNumber.__pow = BigNumber.intpow
 
 function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if b.maxExp == nil then return BigNumber.constant.nan end
@@ -819,8 +819,8 @@ function BigNumber.simpleIntDiv(a,b)	-- TODO negative support!
 end
 
 function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a:isZero() then return a end
@@ -935,8 +935,8 @@ end
 BigNumber.__mod = BigNumber.intmod
 
 function BigNumber.__eq(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a.maxExp == nil and b.maxExp == nil then return true end	--negative zero equals positive zero
@@ -954,8 +954,8 @@ function BigNumber.__ne(a,b)
 	return not a == b
 end
 function BigNumber.__lt(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
 		if b:isZero() then
@@ -981,8 +981,8 @@ function BigNumber.__lt(a,b)
 	return false -- equal
 end
 function BigNumber.__le(a,b)
-	if not BigNumber.is(a) then a = BigNumber(a) end
-	if not BigNumber.is(b) then b = BigNumber(b) end
+	if not BigNumber:isa(a) then a = BigNumber(a) end
+	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
 	if a:isZero() then
