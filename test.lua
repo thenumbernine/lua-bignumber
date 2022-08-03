@@ -4,6 +4,7 @@ local big = require 'bignumber'
 local function asserteq(a,b, msg)
 	print(a..' == '.. b)
 	if a ~= b then
+		print("expected "..tolua(a).." to equal "..tolua(b))
 		error("expected "..a.." to equal "..b..(msg and ': '..msg or ''))
 	end
 end

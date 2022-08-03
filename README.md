@@ -1,3 +1,7 @@
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=KYWUWS86GSFGL)
+
+### BigNumber in Lua
+
 This is a big number class that I made for assistance with some Project Euler problems.
 It supports 
 - construction from strings:
