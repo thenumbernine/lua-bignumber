@@ -221,10 +221,10 @@ function BigNumber.__add(a,b)
 		b.repeatFrom = bRepeatFrom
 		-- so now the repeat of a and b is as long as one another
 		while a.repeatTo < b.repeatTo do
-			b = b:shiftRepeat()
+			b:shiftRepeat()
 		end
 		while b.repeatTo < a.repeatTo do
-			a = a:shiftRepeat()
+			a:shiftRepeat()
 		end
 		assert(a.repeatFrom == b.repeatFrom)
 		assert(a.repeatTo == b.repeatTo)
@@ -376,10 +376,10 @@ function BigNumber.__sub(a,b)
 		b.repeatFrom = bRepeatFrom
 		-- so now the repeat of a and b is as long as one another
 		while a.repeatTo < b.repeatTo do
-			b = b:shiftRepeat()
+			b:shiftRepeat()
 		end
 		while b.repeatTo < a.repeatTo do
-			a = a:shiftRepeat()
+			a:shiftRepeat()
 		end
 		assert(a.repeatFrom == b.repeatFrom)
 		assert(a.repeatTo == b.repeatTo)
@@ -593,23 +593,6 @@ for a 1-rep * 1-rep, resulting rep is 9
 This means, with multiplication, repeated digits increases exponentially.
 So in order to implement this with any practicality, time to implement a limit on precision.
 
-...
-
-1/9 * 1/9 
-= 1/81 
-= 1/99 * 99/81
-= (37 * 333667) / (3 * 3 * 3 * 3 * 37 * 333667)
-...
-= 12345679/999999999
-
-
-how about this ... 
-for a/99...m * b/99...n :
-
-1) get the repeating fraction of 1/(99...(m+n))
-2) multiply it by a*b ... which should be <= (99...(m+n)) 
-3) shift accordingly
-4) add accordingly
 --]]
 function BigNumber.longMul(a,b)
 	if not BigNumber:isa(a) then a = BigNumber(a) end
@@ -617,6 +600,49 @@ function BigNumber.longMul(a,b)
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
+
+	if a.repeatFrom and not b.repeatFrom then
+		-- TODO I'm sure this is a bad implementation. I didn't think hard about edge cases.  fixme plz.
+--print('before shifting repeat: '..a..' * '..b)	
+		local shl
+		if b.minExp < 0 then
+			shl = -b.minExp
+			b = b:shiftLeft(shl)
+			assert(b.minExp == 0)
+		end
+		local bnumdigits = b.maxExp - b.minExp + 1
+--print('rhs number of digits', bnumdigits)
+		-- can I just push/pop the repeat range and otherwise multiply like a non-repeating number?
+		local from = a.repeatFrom
+		local to = a.repeatTo
+--print('lhs repeat range', from, to)
+		-- ok how about shift repeat left function
+		-- and shift left by b.maxExp ... only if b.maxExp > 0 though ... hmm
+		a = BigNumber(a)
+		for i=1,bnumdigits do
+			a:shiftRepeat()
+		end
+--print('after shifting repeat: '..a..' * '..b)	
+		a.repeatFrom = nil
+		a.repeatTo = nil
+		c = a * b
+--print('result without repeat', c)		
+		c.repeatFrom = from
+		c.repeatTo = to
+		while c.minExp < c.repeatTo do
+			c[c.minExp] = nil
+			c.minExp = c.minExp + 1
+		end
+		if shl then
+			c = c:shiftRight(shl)
+		end
+		return c
+	elseif not a.repeatFrom and b.repeatFrom then
+		return b * a
+	elseif a.repeatFrom and b.repeatFrom then
+		error'here'
+	end
+
 	local c = BigNumber()
 	c.base = a.base
 	c.negative = a.negative ~= b.negative
@@ -646,9 +672,7 @@ function BigNumber.longMul(a,b)
 	if cMinExp ~= 0 then
 		c = c:shiftLeft(cMinExp)
 	end
-	c:removeExtraZeroes()
-
-	return c
+	return c:removeExtraZeroes()
 end
 BigNumber.__mul = BigNumber.longMul
 

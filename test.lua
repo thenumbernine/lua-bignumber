@@ -148,6 +148,8 @@ asserteq(big'.1' - _1_3, big{negative=true, repeatFrom=-2, repeatTo=-2, [-1]=2, 
 -- TODO how about repeatFrom/repeatTo when they are in the negative digits place?
 asserteq(_1_3*10, big{repeatFrom=-1, repeatTo=-1, [0]=3, [-1]=3})
 
+asserteq(_1_3*.1, big{repeatFrom=-2, repeatTo=-2, [-2]=3})
+
 -- div
 -- TODO FIXME dividing (even by 1000) removes the repeatFrom/repeatTo
 asserteq(_1_3/10, big{repeatFrom=-2, repeatTo=-2, [-2]=3})
