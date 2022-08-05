@@ -65,6 +65,7 @@ for i=-10,10 do
 end
 
 -- divide
+assert(big(0):isZero())
 assert((big(0) / big(0)).nan)
 asserteq(big(1) / big(0), big.constant.infinity)
 asserteq(big(-1) / big(0), -big.constant.infinity)

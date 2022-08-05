@@ -93,8 +93,9 @@ function BigNumber:init(n, base)
 end
 
 function BigNumber:removeExtraZeroes()
-	self:removeLeadingZeroes()
-	self:removeTrailingZeroes()
+	return self
+		:removeLeadingZeroes()
+		:removeTrailingZeroes()
 end
 
 function BigNumber:removeLeadingZeroes()
@@ -102,13 +103,17 @@ function BigNumber:removeLeadingZeroes()
 		self:calcMaxExp()
 		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
-		if self.repeatFrom and self.maxExp >= self.repeatFrom then break end
+		if self.repeatFrom then 
+			assert(self.maxExp >= self.repeatFrom)
+			if self.maxExp == self.repeatFrom then break end
+		end
 		-- TODO
 		-- make sure maxExp is always non-negative, and make sure minExp is always non-positive
-		if self.maxExp < 0 then break end
+--		if self.maxExp < 0 then break end
 		self[self.maxExp] = nil
 	end
 	self:calcMaxExp()
+	return self
 end
 
 function BigNumber:removeTrailingZeroes()
@@ -116,11 +121,15 @@ function BigNumber:removeTrailingZeroes()
 		self:calcMinExp()
 		assert(not self:isFinite() or self:isZero() or self[self.minExp] ~= nil)
 		if self[self.minExp] ~= 0 then break end
-		if self.repeatTo and self.minExp <= self.repeatTo then break end
-		if self.minExp > 0 then break end
+		if self.repeatTo then
+			assert(self.minExp <= self.repeatTo)
+			if self.minExp == self.repeatTo then break end
+		end
+--		if self.minExp > 0 then break end
 		self[self.minExp] = nil
 	end
 	self:calcMinExp()
+	return self
 end
 
 -- in-place
@@ -282,10 +291,7 @@ function BigNumber.__add(a,b)
 			c = c + BigNumber{[minExp]=1, base=c.base}
 		end
 	end
-	
-	c:removeExtraZeroes()	
-
-	return c
+	return c:removeExtraZeroes()	
 end
 
 function BigNumber.__sub(a,b)
@@ -426,10 +432,7 @@ function BigNumber.__sub(a,b)
 			c = c + BigNumber{[minExp]=1, base=c.base}
 		end
 	end
-	
-	c:removeLeadingZeroes()
-	
-	return c
+	return c:removeLeadingZeroes()
 end
 
 -- shift the repeat pattern once to the right
@@ -590,6 +593,23 @@ for a 1-rep * 1-rep, resulting rep is 9
 This means, with multiplication, repeated digits increases exponentially.
 So in order to implement this with any practicality, time to implement a limit on precision.
 
+...
+
+1/9 * 1/9 
+= 1/81 
+= 1/99 * 99/81
+= (37 * 333667) / (3 * 3 * 3 * 3 * 37 * 333667)
+...
+= 12345679/999999999
+
+
+how about this ... 
+for a/99...m * b/99...n :
+
+1) get the repeating fraction of 1/(99...(m+n))
+2) multiply it by a*b ... which should be <= (99...(m+n)) 
+3) shift accordingly
+4) add accordingly
 --]]
 function BigNumber.longMul(a,b)
 	if not BigNumber:isa(a) then a = BigNumber(a) end
@@ -823,7 +843,6 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
-	if a:isZero() then return a end
 	if b:isZero() then
 		if a:isZero() then return BigNumber.constant.nan end
 		if a.negative then
@@ -832,6 +851,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			return BigNumber.constant.infinity
 		end	
 	end
+	if a:isZero() then return a end
 
 	-- TODO decimal division, especially picking the # of digits of accuracy
 	local aMinExp = 0
