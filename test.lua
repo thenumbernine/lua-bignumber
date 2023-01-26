@@ -1,5 +1,7 @@
 #!/usr/bin/env lua
 require 'ext'
+local tolua = require 'ext.tolua'
+
 local big = require 'bignumber'
 local function asserteq(a,b, msg)
 	print(a..' == '.. b)

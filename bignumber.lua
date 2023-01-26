@@ -14,7 +14,7 @@ BigNumber.base = 10
 
 function BigNumber:init(n, base)
 -- hmm... this causes errors in longIntDiv
--- but without this I can't make the assertion in toBase() that we are getting an integer	
+-- but without this I can't make the assertion in toBase() that we are getting an integer
 --	self.minExp = 0
 --	self.maxExp = 0
 	self.base = base
@@ -89,7 +89,7 @@ function BigNumber:init(n, base)
 	else
 		error("don't know how to handle the input of type "..type(n))
 	end
-	self:removeExtraZeroes()	
+	self:removeExtraZeroes()
 end
 
 function BigNumber:removeExtraZeroes()
@@ -103,7 +103,7 @@ function BigNumber:removeLeadingZeroes()
 		self:calcMaxExp()
 		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
-		if self.repeatFrom then 
+		if self.repeatFrom then
 			assert(self.maxExp >= self.repeatFrom)
 			if self.maxExp == self.repeatFrom then break end
 		end
@@ -176,7 +176,7 @@ function BigNumber.__add(a,b)
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
 		if b.infinity then
-			if a.negative == b.negative then 
+			if a.negative == b.negative then
 				if a.negative then
 					return -BigNumber.constant.infinity
 				else
@@ -207,8 +207,8 @@ function BigNumber.__add(a,b)
 		-- adjust them
 		local aRepLen = a.repeatFrom - a.repeatTo + 1
 		local bRepLen = b.repeatFrom - b.repeatTo + 1
-		local lcmab = lcm(aRepLen, bRepLen)	
-		
+		local lcmab = lcm(aRepLen, bRepLen)
+
 		local aRepeatFrom = a.repeatFrom
 		while aRepeatFrom-a.repeatTo+1 < lcmab do
 			a:repeatRepeat()
@@ -231,15 +231,15 @@ function BigNumber.__add(a,b)
 		repeatFrom = a.repeatFrom
 		repeatTo = a.repeatTo
 	elseif a.repeatFrom or b.repeatFrom then
-		local function adjustAtoB(a,b)
-			if b.minExp < a.repeatFrom then
-				a = BigNumber(a)
+		local function adjustAtoB(a_,b_)
+			if b_.minExp < a_.repeatFrom then
+				a_ = BigNumber(a_)
 				-- prepend
-				while b.minExp < a.repeatFrom do
-					a:repeatRepeat()
+				while b_.minExp < a_.repeatFrom do
+					a_:repeatRepeat()
 				end
 			end
-			return a
+			return a_
 		end
 		if a.repeatFrom and not b.repeatFrom then
 			a = adjustAtoB(a,b)
@@ -251,7 +251,7 @@ function BigNumber.__add(a,b)
 			repeatTo = b.repeatTo
 		end
 	end
-	
+
 	local c = BigNumber()
 	c.negative = a.negative	-- == b.negative
 	c.minExp = math.min(a.minExp, b.minExp)
@@ -273,17 +273,17 @@ function BigNumber.__add(a,b)
 		assert(c.repeatFrom and c.repeatTo)
 		assert(c.repeatTo <= c.repeatFrom)
 		local all = true
-		for i=c.repeatTo,c.repeatFrom do
-			if c[i] ~= c.base-1 then
+		for j=c.repeatTo,c.repeatFrom do
+			if c[j] ~= c.base-1 then
 				all = false
 				break
 			end
 		end
-		-- all repeating 
+		-- all repeating
 		if all then
 			local minExp = c.repeatFrom+1
-			for i=c.repeatTo,c.repeatFrom do
-				c[i] = nil
+			for j=c.repeatTo,c.repeatFrom do
+				c[j] = nil
 			end
 			c.repeatFrom = nil
 			c.repeatTo = nil
@@ -291,7 +291,7 @@ function BigNumber.__add(a,b)
 			c = c + BigNumber{[minExp]=1, base=c.base}
 		end
 	end
-	return c:removeExtraZeroes()	
+	return c:removeExtraZeroes()
 end
 
 function BigNumber.__sub(a,b)
@@ -301,7 +301,7 @@ function BigNumber.__sub(a,b)
 	if a.nan or b.nan then return BigNumber.constant.nan end
 	if a.infinity then
 		if b.infinity then
-			if a.negative == b.negative then 
+			if a.negative == b.negative then
 				if a.negative then
 					return -BigNumber.constant.infinity
 				else
@@ -356,14 +356,14 @@ function BigNumber.__sub(a,b)
 			b.repeatFrom = b.minExp
 			b.repeatTo = b.minExp
 		end
-		
+
 		-- find lcm of #aRep and #bRep
 		-- stretch both to this size
 		-- adjust them
 		local aRepLen = a.repeatFrom - a.repeatTo + 1
 		local bRepLen = b.repeatFrom - b.repeatTo + 1
-		local lcmab = lcm(aRepLen, bRepLen)	
-		
+		local lcmab = lcm(aRepLen, bRepLen)
+
 		local aRepeatFrom = a.repeatFrom
 		while aRepeatFrom-a.repeatTo+1 < lcmab do
 			a:repeatRepeat()
@@ -386,7 +386,7 @@ function BigNumber.__sub(a,b)
 		repeatFrom = a.repeatFrom
 		repeatTo = a.repeatTo
 	end
-	
+
 	local c = BigNumber()
 	c.negative = a.negative
 	c.minExp = math.min(a.minExp, b.minExp)
@@ -396,7 +396,7 @@ function BigNumber.__sub(a,b)
 	while i <= a.maxExp or i <= b.maxExp do	-- shouldn't allow borrow past the end
 		local digit = (a[i] or 0) - (b[i] or 0) + borrow
 		borrow = 0
-		if digit < 0 then 
+		if digit < 0 then
 			borrow = -1
 			digit = digit + a.base
 		end
@@ -406,7 +406,7 @@ function BigNumber.__sub(a,b)
 	end
 	-- this fails for big(2.5, 2.5) / big(5)
 	assert(borrow == 0)
-	
+
 	c.repeatFrom = repeatFrom
 	c.repeatTo = repeatTo
 
@@ -414,17 +414,17 @@ function BigNumber.__sub(a,b)
 		assert(c.repeatFrom and c.repeatTo)
 		assert(c.repeatTo <= c.repeatFrom)
 		local all = true
-		for i=c.repeatTo,c.repeatFrom do
-			if c[i] ~= c.base-1 then
+		for j=c.repeatTo,c.repeatFrom do
+			if c[j] ~= c.base-1 then
 				all = false
 				break
 			end
 		end
-		-- all repeating 
+		-- all repeating
 		if all then
 			local minExp = c.repeatFrom+1
-			for i=c.repeatTo,c.repeatFrom do
-				c[i] = nil
+			for j=c.repeatTo,c.repeatFrom do
+				c[j] = nil
 			end
 			c.repeatFrom = nil
 			c.repeatTo = nil
@@ -447,7 +447,7 @@ function BigNumber:shiftRepeat()
 	end
 	local replen = self.repeatFrom - self.repeatTo + 1
 	local i = self.minExp-1+replen
-	if not self[i] then 
+	if not self[i] then
 		local tolua = require 'ext.tolua'
 		error("failed to read from element "..i..' '..tolua{
 			['self.minExp'] = self.minExp,
@@ -540,18 +540,18 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 	if not BigNumber:isa(a) then a = BigNumber(a) end
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	if a.nan or b.nan then return BigInit.nan end
+	if a.nan or b.nan then return BigNumber.nan end
 	if a.maxExp == nil or b.maxExp == nil then return BigNumber() end
 	local bWasNegative = b.negative
 	if b.negative then
 		b = -b
 	end
-	
+
 	local aMinExp = a.minExp
 	local bMinExp = b.minExp
 	if aMinExp ~= 0 then a = a:shiftLeft(-aMinExp) end
 	if bMinExp ~= 0 then b = b:shiftLeft(-bMinExp) end
-	
+
 	local c = BigNumber()
 	c.base = a.base
 	local counter = BigNumber()
@@ -560,7 +560,7 @@ function BigNumber.simpleMul(a,b)	-- TODO better multiplication algorithm!
 		counter = counter + BigNumber(1)
 	end
 	c.negative = a.negative ~= bWasNegative
-	
+
 	local cMinExp = aMinExp + bMinExp
 	if cMinExp ~= 0 then
 		c = c:shiftRight(-cMinExp)
@@ -577,7 +577,7 @@ end
 	+ ddd/99..n
 	+ bbb*ddd* numer of 1/(99..m * 99..n)
 
-for m-rep * n-rep, the results rep is a (m+n)-rep where 
+for m-rep * n-rep, the results rep is a (m+n)-rep where
 m+n	(m+n)-rep
 0	0
 1	1
@@ -603,7 +603,7 @@ function BigNumber.longMul(a,b)
 
 	if a.repeatFrom and not b.repeatFrom then
 		-- TODO I'm sure this is a bad implementation. I didn't think hard about edge cases.  fixme plz.
---print('before shifting repeat: '..a..' * '..b)	
+--print('before shifting repeat: '..a..' * '..b)
 		local shl
 		if b.minExp < 0 then
 			shl = -b.minExp
@@ -622,11 +622,11 @@ function BigNumber.longMul(a,b)
 		for i=1,bnumdigits do
 			a:shiftRepeat()
 		end
---print('after shifting repeat: '..a..' * '..b)	
+--print('after shifting repeat: '..a..' * '..b)
 		a.repeatFrom = nil
 		a.repeatTo = nil
-		c = a * b
---print('result without repeat', c)		
+		local c = a * b
+--print('result without repeat', c)
 		c.repeatFrom = from
 		c.repeatTo = to
 		while c.minExp < c.repeatTo do
@@ -646,12 +646,12 @@ function BigNumber.longMul(a,b)
 	local c = BigNumber()
 	c.base = a.base
 	c.negative = a.negative ~= b.negative
-	
+
 	local aMinExp = a.minExp
 	local bMinExp = b.minExp
 	if aMinExp ~= 0 then a = a:shiftRight(aMinExp) end
 	if bMinExp ~= 0 then b = b:shiftRight(bMinExp) end
-	
+
 	c.minExp = 0
 	c.maxExp = a.maxExp + b.maxExp
 	for i=0,c.maxExp do
@@ -667,7 +667,7 @@ function BigNumber.longMul(a,b)
 	end
 	-- 2) apply carries
 	c:carry()
-	
+
 	local cMinExp = aMinExp + bMinExp
 	if cMinExp ~= 0 then
 		c = c:shiftLeft(cMinExp)
@@ -679,9 +679,9 @@ BigNumber.__mul = BigNumber.longMul
 --[[
 a^b = (an..a0)^b = (10^n an + ... + 10^0 a0)^b
  = (10^n an + ... + a0) * ... * (10^n an + ... + a0) (b times)
- 
+
 (a0 + x a1)^2 = a0^2 + x 2 a0 a1 + x^2 a1^2
-(a0 + x a1 + x^2 a2)^2 = 
+(a0 + x a1 + x^2 a2)^2 =
 	a0 a0
 	+ x * ((a0 + a1) + (a1 + a0))
 	+ x^2 * (a0 a2 + a1 a1 + a2 a0)
@@ -704,7 +704,7 @@ function BigNumber.intPow_binomial(a,b)
 	local iters = table()
 	local bNum = b:tonumber()	-- for our iterator table ... this limits this power method to only exponents of 4billion (or whatever the precision of doubles is)
 	for i=1,bNum do
-		iters[i] = a.minExp	
+		iters[i] = a.minExp
 	end
 	local c = BigNumber()
 	c.base = a.base
@@ -753,7 +753,7 @@ end
 -- returns a table of digits, with the 0's digit in [0], and the n'th digit in [n]
 function BigNumber.toBase(n, base)
 	assert(base > 1, "can't set to a base of 1 or lower")
-	
+
 	n = BigNumber(n)
 	if n.base == base then return n end
 
@@ -767,17 +767,19 @@ function BigNumber.toBase(n, base)
 	local result = BigNumber()
 	result.base = base
 	result.minExp = 0
-	local i = 0
-	local b
-	local zero = BigNumber(0, n.base)
-	while n > zero do
-		n, b = n:intdiv(p)
-		n = n:truncMinExp(0)
-		result[i] = b:tonumber()
-		result.maxExp = i
-		i = i + 1
+	do
+		local i = 0
+		local b
+		local zero = BigNumber(0, n.base)
+		while n > zero do
+			n, b = n:intdiv(p)
+			n = n:truncMinExp(0)
+			result[i] = b:tonumber()
+			result.maxExp = i
+			i = i + 1
+		end
 	end
-	
+
 	local f = orign:truncMaxExp(-1)
 	if f > 0 then
 		local i = -1
@@ -789,12 +791,13 @@ function BigNumber.toBase(n, base)
 			i = i - 1
 		end
 	end
-	
+
 	result:removeExtraZeroes()
-	
+
 	return result
 end
 
+--[[
 -- convert a table of digits back to a number
 -- use caching of powers-of-two to do this
 local function bin2num(b)
@@ -808,11 +811,12 @@ local function bin2num(b)
 	end
 	return res
 end
+--]]
 
 -- a^b = a^sum_i b_i for b_i the powers-of-two of b
 -- TODO use another power? other than 2?
 -- this runs faster than intPow_simple for n>80 (and they're both quick enough for n<=80)
-function BigNumber.intPow_binDigits(a,b)	
+function BigNumber.intPow_binDigits(a,b)
 	if not BigNumber:isa(a) then a = BigNumber(a) end
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
@@ -873,12 +877,12 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			return -BigNumber.constant.infinity
 		else
 			return BigNumber.constant.infinity
-		end	
+		end
 	end
 	if a:isZero() then return a end
 
 	-- TODO decimal division, especially picking the # of digits of accuracy
-	local aMinExp = 0
+	--local aMinExp = 0
 	-- [[
 	local aMinExp = a.minExp
 	if aMinExp < 0 then a = a:shiftRight(aMinExp) else aMinExp = 0 end
@@ -889,7 +893,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	--]]
 
 	local dividendDigits = BigNumber(a)
-	local place = dividendDigits.maxExp or 0 
+	local place = dividendDigits.maxExp or 0
 	local dividendCurrentDigits = BigNumber(dividendDigits[place], a.base)	-- most significant digit
 	dividendDigits[place] = nil
 	dividendDigits:calcMaxExp()
@@ -913,7 +917,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 				repeatTo = place + 1
 				break
 			end
-			digitLastRemainderPairs[key] = place 
+			digitLastRemainderPairs[key] = place
 		end
 		assert(dividendCurrentDigits >= BigNumber(0, a.base))
 		results[place] = digit[0] or 0
@@ -929,12 +933,15 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 	if repeatFrom then
 		if repeatFrom == repeatTo and results[repeatFrom] == 0 then
 			results[repeatFrom] = nil
-			results.minExp = repeatFrom+1 
+			results.minExp = repeatFrom+1
 			repeatFrom = nil
 			repeatTo = nil
 		end
 	end
 	-- and we're good to test
+	--[[ TODO this looks unfinished ...
+	-- TODO define maxRepeatingLength somewhere
+	-- and do something with maxRepeatingP
 	if repeatFrom then
 		local repeatingLength = repeatFrom - repeatTo + 1
 		if not maxRepeatingLength or repeatingLength > maxRepeatingLength then
@@ -942,6 +949,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			maxRepeatingP = b
 		end
 	end
+	--]]
 	results:removeLeadingZeroes()
 	if getRepeatingDecimals then
 		results.repeatFrom = repeatFrom
@@ -1012,10 +1020,10 @@ function BigNumber.__lt(a,b)
 	end
 	if a.negative and not b.negative then return true end
 	if b.negative and not a.negative then return false end
-	
+
 	-- do zero/negative tests before converting number bases
 	if a.base ~= b.base then b = b:toBase(a.base) end
-	
+
 	if a.maxExp < b.maxExp then return not a.negative end
 	if a.maxExp > b.maxExp then return a.negative end
 	for i=a.maxExp,math.min(a.minExp, b.minExp),-1 do
@@ -1071,7 +1079,7 @@ function BigNumber.calcMaxExp(n)
 	n.maxExp = nil
 	for k,v in pairs(n) do
 		if type(k) == 'number' then
-			if n.maxExp == nil then 
+			if n.maxExp == nil then
 				n.maxExp = k
 			else
 				n.maxExp = math.max(n.maxExp, k)
@@ -1083,7 +1091,7 @@ function BigNumber.calcMaxExp(n)
 end
 function BigNumber.calcMinExp(n)
 	if n.nan then return n end
-	n.minExp = nil 
+	n.minExp = nil
 	for k,v in pairs(n) do
 		if type(k) == 'number' then
 			if n.minExp == nil then
@@ -1098,11 +1106,11 @@ function BigNumber.calcMinExp(n)
 end
 function BigNumber.__tostring(n)
 	if n.nan then return 'nan' end
-	if n.infinity then 
+	if n.infinity then
 		if n.negative then
 			return '-inf'
 		else
-			return 'inf' 
+			return 'inf'
 		end
 	end
 	if n:isZero() then return '0' end
@@ -1112,7 +1120,7 @@ function BigNumber.__tostring(n)
 		if n[i] then
 			s = s .. number.charfor(math.floor(n[i]))
 		else
-			-- repeated decimals starting at positive digits means repeating through 
+			-- repeated decimals starting at positive digits means repeating through
 			if n.repeatTo and i < n.repeatTo then
 				local j = (i - n.repeatTo) % (n.repeatFrom - n.repeatTo + 1) + n.repeatTo
 				s = s .. number.charfor(math.floor(n[j] or 0))
@@ -1139,8 +1147,8 @@ function BigNumber.__tostring(n)
 	end
 	return s
 end
-function BigNumber.__concat(a,b) 
-	return tostring(a) .. tostring(b) 
+function BigNumber.__concat(a,b)
+	return tostring(a) .. tostring(b)
 end
 
 function BigNumber.factorial(n)
@@ -1168,8 +1176,8 @@ function BigNumber:sumOfDigits()
 	return self:digits():sum()
 end
 
-function BigNumber:isZero() 
-	return not self.maxExp 
+function BigNumber:isZero()
+	return not self.maxExp
 end
 
 function BigNumber:isFinite()
