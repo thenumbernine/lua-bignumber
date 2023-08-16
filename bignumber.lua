@@ -1192,5 +1192,52 @@ BigNumber.constant = {
 	infinity = BigNumber{infinity=true},
 }
 
+-- https://en.wikipedia.org/wiki/Integer_square_root#Algorithm_using_binary_search
+function BigNumber.sqrt(x)
+	if not BigNumber:isa(x) then x = BigNumber(x) end
+	local l = big()
+	local r = x + 1
+	while l ~= r - 1 do
+		local m = (l + r):intdiv(2)
+		if m * m <= x then
+			l = m
+		else
+			r = m
+		end
+	end
+	return l
+end
+
+--[[
+this is also in ext.math
+but it has a few floor() functions there
+and it has separated % and / operations
+would be nice if Lua would let us access int division-with-remainder
+--]]
+function BigNumber.primeFactorization(n)
+	if not BigNumber:isa(n) then n = BigNumber(n) end
+	local f = table()
+	while n > 1 do
+		local found = false
+		local i = BigNumber(2)
+		local sqrtn = n:sqrt()
+		while i <= sqrtn do
+			local a,b = n:intdiv(i)
+			if b:isZero() then
+				n = a
+--print(i, n)
+				f:insert(i)
+				found = true
+				break
+			end
+			i = i + 1
+		end
+		if not found then
+			f:insert(n)
+			break
+		end
+	end
+	return f
+end
 
 return BigNumber
