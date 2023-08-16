@@ -1225,7 +1225,6 @@ function BigNumber.primeFactorization(n)
 			local a,b = n:intdiv(i)
 			if b:isZero() then
 				n = a
---print(i, n)
 				f:insert(i)
 				found = true
 				break
