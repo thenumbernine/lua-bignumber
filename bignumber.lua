@@ -1239,4 +1239,14 @@ function BigNumber.primeFactorization(n)
 	return f
 end
 
+function BigNumber.floor(n)
+	n = BigNumber(n)
+	while n.minExp < 0 do
+		n[n.minExp] = 0
+		n.minExp = n.minExp + 1
+		if n.minExp > n.maxExp then return BigNumber() end
+	end
+	return n
+end
+
 return BigNumber
