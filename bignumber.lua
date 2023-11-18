@@ -47,37 +47,45 @@ function BigNumber:init(n, base)
 			self.minExp = 0
 		end
 	elseif type(n) == 'number' then
-		if n < 0 then
-			self.negative = true
-			n = -n
-		end
-		-- TODO use longIntDiv, esp with non-10 bases, so we can take advantage of repeating digits
-		-- TODO between this and toBase(), the code is very similar
-		-- and toBase uses BigNumbers for accuracy...
-		-- and this allows for fractional bases...
-		-- TODO first convert the number in base-10 or base-2 or something
-		-- (using ffi we can assign it to a double[1] and then use its bits to determine the number exactly)
-		-- then use toBase to convert it to whatever base is desired
-		-- and change that code to take decimals (and repeating decimals) into account
-		if n > 0 then
-			local f = math.floor(n)
-			local i = 0
-			self.minExp = 0
-			while f > 0 do
-				self[i] = f % self.base
-				f = math.floor((f - self[i]) / self.base)
-				self.maxExp = i
-				i = i + 1
+		if n ~= n then
+			self.nan = true
+		else
+			if n < 0 then
+				self.negative = true
+				n = -n
 			end
-			local d = n - math.floor(n)
-			if d > 0 then
-				d = d * self.base
-				i = -1
-				while d > 0 do
-					self[i] = math.floor(d) % self.base
-					d = (d - self[i]) * self.base
-					self.minExp = i
-					i = i - 1
+			if n == math.huge then
+				self.infinity = true
+			else
+				-- TODO use longIntDiv, esp with non-10 bases, so we can take advantage of repeating digits
+				-- TODO between this and toBase(), the code is very similar
+				-- and toBase uses BigNumbers for accuracy...
+				-- and this allows for fractional bases...
+				-- TODO first convert the number in base-10 or base-2 or something
+				-- (using ffi we can assign it to a double[1] and then use its bits to determine the number exactly)
+				-- then use toBase to convert it to whatever base is desired
+				-- and change that code to take decimals (and repeating decimals) into account
+				if n > 0 then
+					local f = math.floor(n)
+					local i = 0
+					self.minExp = 0
+					while f > 0 do
+						self[i] = f % self.base
+						f = math.floor((f - self[i]) / self.base)
+						self.maxExp = i
+						i = i + 1
+					end
+					local d = n - math.floor(n)
+					if d > 0 then
+						d = d * self.base
+						i = -1
+						while d > 0 do
+							self[i] = math.floor(d) % self.base
+							d = (d - self[i]) * self.base
+							self.minExp = i
+							i = i - 1
+						end
+					end
 				end
 			end
 		end
@@ -986,6 +994,14 @@ end
 
 BigNumber.__mod = BigNumber.intmod
 
+function BigNumber:isPosInf()
+	return self.infinity and not self.negative
+end
+
+function BigNumber:isNegInf()
+	return self.infinity and self.negative
+end
+
 function BigNumber.__eq(a,b)
 	if not BigNumber:isa(a) then a = BigNumber(a) end
 	if not BigNumber:isa(b) then b = BigNumber(b) end
@@ -1009,6 +1025,7 @@ function BigNumber.__lt(a,b)
 	if not BigNumber:isa(a) then a = BigNumber(a) end
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.nan or b.nan then return false end
+	if b:isPosInf() and not a:isPosInf() then return true end
 	if a:isZero() then
 		if b:isZero() then
 			return false
@@ -1037,6 +1054,7 @@ function BigNumber.__le(a,b)
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return false end
+	if b:isPosInf() then return true end
 	if a:isZero() then
 		if b:isZero() then
 			return true
@@ -1215,14 +1233,14 @@ and it has separated % and / operations
 would be nice if Lua would let us access int division-with-remainder
 --]]
 function BigNumber.primeFactorization(n)
-	if not BigNumber:isa(n) then n = BigNumber(n) end
+	n = BigNumber(n)
 	local f = table()
 	while n > 1 do
 		local found = false
 		local i = BigNumber(2)
 		local sqrtn = n:sqrt()
 		while i <= sqrtn do
-			local a,b = n:intdiv(i)
+			local a, b = n:intdiv(i)
 			if b:isZero() then
 				n = a
 				f:insert(i)
