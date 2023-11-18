@@ -1195,7 +1195,7 @@ BigNumber.constant = {
 -- https://en.wikipedia.org/wiki/Integer_square_root#Algorithm_using_binary_search
 function BigNumber.sqrt(x)
 	if not BigNumber:isa(x) then x = BigNumber(x) end
-	local l = big()
+	local l = BigNumber()
 	local r = x + 1
 	while l ~= r - 1 do
 		local m = (l + r):intdiv(2)
