@@ -182,18 +182,16 @@ function BigNumber.__add(a,b)
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if b.base ~= a.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
-	if a.infinity then
-		if b.infinity then
-			if a.negative == b.negative then
-				if a.negative then
-					return -BigNumber.constant.infinity
-				else
-					return BigNumber.constant.infinity
-				end
-			else
-				return BigNumber.constant.nan
-			end
+	if a.infinity and b.infinity then
+		if a.negative == b.negative then
+			return a
+		else
+			return BigNumber.constant.nan
 		end
+	elseif a.infinity then
+		return a
+	elseif b.infinity then
+		return b
 	end
 	-- if signs don't match, treat it like an addition
 	if a.negative ~= b.negative then
@@ -307,18 +305,16 @@ function BigNumber.__sub(a,b)
 	if not BigNumber:isa(b) then b = BigNumber(b) end
 	if a.base ~= b.base then b = b:toBase(a.base) end
 	if a.nan or b.nan then return BigNumber.constant.nan end
-	if a.infinity then
-		if b.infinity then
-			if a.negative == b.negative then
-				if a.negative then
-					return -BigNumber.constant.infinity
-				else
-					return BigNumber.constant.infinity
-				end
-			else
-				return BigNumber.constant.nan
-			end
+	if a.infinity and b.infinity then
+		if a.negative == b.negative then
+			return BigNumber.constant.nan
+		else
+			return a
 		end
+	elseif a.infinity then
+		return a
+	elseif b.infinity then
+		return -b
 	end
 	-- if signs don't match, treat it like an addition
 	if a.negative ~= b.negative then
