@@ -4,6 +4,10 @@
 [![Donate via Bitcoin](https://img.shields.io/badge/Donate-Bitcoin-green.svg)](bitcoin:37fsp7qQKU8XoHZGRQvVzQVP8FrEJ73cSJ)<br>
 
 This is a big number class that I made for assistance with some Project Euler problems.
+
+It supports infinite-precision for rational numbers, as well as finite-precision.
+The finite-precision support is not fully developed.
+
 It supports 
 - construction from strings:
 
@@ -13,9 +17,9 @@ It supports
 
 	`a = big(123)`
 
-- construction from tables of digits
+- construction from tables of digits.  Keys correspond with the power-of-base.
 
-	`a = big{[0]=1,2,3}`
+	`a = big{[0]=3,2,1}`
 
 - arbitrary bases (include non-integer)
 
@@ -27,18 +31,17 @@ gives
 
 which is the base-2 representation of 1/20.
 
-- nans
-- infinity
-- negatives
-- repeating decimal place calculation derived from long division
-- addition (including infinite precision addition)
-- subtraction (including infinite precision addition)
-- multiplication
-- division: integer division, long division with/without repeating decimal place calculation
-- power for integers only
-- modulo for integers only
-- factorial
-
+- nans.
+- infinity.
+- negatives.
+- infinite precision rational number calculation derived from long division.
+- addition (including infinite precision addition).
+- subtraction (including infinite precision addition).
+- multiplication.
+- division: integer division, long division with/without repeating decimal place calculation.
+- power for integers only.
+- modulo for integers only.
+- factorial.
 
 Use it like so:
 ```lua
@@ -68,6 +71,6 @@ big(2)^11213-1
 Enjoy!
 
 TODO
-- big:toBase doesn't work for non-integer bases yet.  I do have non-integer number serialization in my lua-ext project, if you're curious what 4 is in base 2.5.
-- Conversion directly from Lua numbers doesn't look for repeating digits
-- specifying an arbitrary precision for operations like multiplication, division, exponents, etc
+- big:toBase doesn't work for non-integer bases yet.  I do have non-integer number serialization in my lua-ext project, if you're curious what 4 is in base 2.5.  Fun fact, when converting a number to a non-integer base, sometimes it will have more than one representation.
+- Conversion directly from Lua numbers doesn't look for repeating digits.
+- Specifying an arbitrary precision for operations like multiplication, division, exponents, etc.
