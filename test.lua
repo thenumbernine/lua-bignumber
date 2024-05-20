@@ -40,6 +40,16 @@ asserteq(big(10).minExp, 1)
 asserteq(big{[0]=0,1}.maxExp, 1)
 asserteq(big{[0]=0,1}.minExp, 1)
 
+--
+do
+	local x = big(100)/7
+	local p,q,r = x:getRepeatAsFrac()
+	asserteq(p, big(285714))
+	asserteq(q, big(999999))
+	asserteq(r, big(14))
+	asserteq(p / q + r, x)
+end
+
 -- unm
 for i=-10,10 do
 	asserteq(-big(i), big(-i))
@@ -151,6 +161,8 @@ asserteq(big'.1' - _1_3, big{negative=true, repeatFrom=-2, repeatTo=-2, [-1]=2, 
 asserteq(_1_3*10, big{repeatFrom=-1, repeatTo=-1, [0]=3, [-1]=3})
 
 asserteq(_1_3*.1, big{repeatFrom=-2, repeatTo=-2, [-2]=3})
+
+print(_1_3, _1_3:getRepeatAsFrac())
 
 -- div
 -- TODO FIXME dividing (even by 1000) removes the repeatFrom/repeatTo
