@@ -213,6 +213,9 @@ function BigNumber.__add(a,b)
 
 	local repeatFrom, repeatTo
 	if a.repeatFrom and b.repeatFrom then
+		-- just use getRepeatAsFrac() ...
+		-- (ai + an / ad) + (bi + bn / bd) = ai + bi + (an * bd + bn * ad) / (ad * bd)
+		-- but it's probably much slower
 		a = BigNumber(a)
 		b = BigNumber(b)
 		-- find lcm of #aRep and #bRep
@@ -244,6 +247,9 @@ function BigNumber.__add(a,b)
 		repeatFrom = a.repeatFrom
 		repeatTo = a.repeatTo
 	elseif a.repeatFrom or b.repeatFrom then
+		-- just use getRepeatAsFrac() ...
+		-- (ai + an / ad) + b = ai + b + an / ad
+		-- but it's probably much slower
 		local function adjustAtoB(a_,b_)
 			if b_.minExp < a_.repeatFrom then
 				a_ = BigNumber(a_)

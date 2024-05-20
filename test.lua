@@ -139,6 +139,8 @@ asserteq(big(1) / big(7), big{repeatTo=1, repeatFrom=6, 7, 5, 8, 2, 4, 1}:shiftR
 local _1_3 = big(1) / big(3)
 asserteq(_1_3 + _1_3 + _1_3, big(1))
 
+asserteq(big(100) / 7 + big(200) / 11, big(2500) / 77)
+
 local _31_99 = big(31) / big(99)
 local _321_999 = big(321) / big(999)
 asserteq(_31_99 + _321_999, big(634452) / big(999999))
