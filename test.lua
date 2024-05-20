@@ -40,7 +40,7 @@ asserteq(big(10).minExp, 1)
 asserteq(big{[0]=0,1}.maxExp, 1)
 asserteq(big{[0]=0,1}.minExp, 1)
 
---
+-- member functions
 do
 	local x = big(100)/7
 	local p,q,r = x:getRepeatAsFrac()
@@ -179,3 +179,12 @@ asserteq(_1_3 / _1_3, big(1))
 asserteq(big('10', 2), big(2))
 asserteq(big('10', 2), big(2):toBase(2))
 asserteq(big('1.1', 2), big'1.5')
+
+--
+print(big(2):primeFactorization():mapi(tostring):concat', ')
+print(big(10):primeFactorization():mapi(tostring):concat', ')
+print(big(12):primeFactorization():mapi(tostring):concat', ')
+print(big(24):primeFactorization():mapi(tostring):concat', ')
+print(big(60):primeFactorization():mapi(tostring):concat', ')
+print(big(120):sqrt())
+print(big(120):primeFactorization():mapi(tostring):concat', ')

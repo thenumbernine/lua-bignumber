@@ -449,7 +449,7 @@ function BigNumber.__sub(a,b)
 			c = c + BigNumber{[minExp]=1, base=c.base}
 		end
 	end
-	return c:removeLeadingZeroes()
+	return c:removeExtraZeroes()
 end
 
 -- shift the repeat pattern once to the right
@@ -1287,10 +1287,26 @@ BigNumber.constant = {
 
 -- https://en.wikipedia.org/wiki/Integer_square_root#Algorithm_using_binary_search
 function BigNumber.sqrt(x)
+--DEBUG(BigNumber.sqrt): local tolua = require 'ext.tolua'
+--DEBUG(BigNumber.sqrt): print'BigNumber.sqrt'
 	if not BigNumber:isa(x) then x = BigNumber(x) end
+--DEBUG(BigNumber.sqrt): print('x =', x)
+	x = x:floor()
+--DEBUG(BigNumber.sqrt): print('floor: x =', x)
 	local l = BigNumber()
+--DEBUG(BigNumber.sqrt): print('l =', l)
 	local r = x + 1
+--DEBUG(BigNumber.sqrt): print('r =', r)
 	while l ~= r - 1 do
+--DEBUG(BigNumber.sqrt): print()
+--DEBUG(BigNumber.sqrt): print('r = '..r)
+--DEBUG(BigNumber.sqrt): print('tolua(r) = '..tolua(r))
+--DEBUG(BigNumber.sqrt): print('r - 1 = '..(r - 1))
+--DEBUG(BigNumber.sqrt): print('tolua(r - 1) = '..tolua(r - 1))
+--DEBUG(BigNumber.sqrt): print('l = '..l)
+--DEBUG(BigNumber.sqrt): print('tolua(l) = '..tolua(l))
+--DEBUG(BigNumber.sqrt): print('l == r - 1 = '..tostring(l == r - 1))
+--DEBUG(BigNumber.sqrt): print('l ~= r - 1 = '..tostring(l ~= r - 1))
 		local m = (l + r):intdiv(2)
 		if m * m <= x then
 			l = m
@@ -1308,14 +1324,20 @@ and it has separated % and / operations
 would be nice if Lua would let us access int division-with-remainder
 --]]
 function BigNumber.primeFactorization(n)
+--DEBUG(BigNumber.primeFactorization): print('BigNumber.primeFactorization')
+--DEBUG(BigNumber.primeFactorization): print('n =', n)
 	n = BigNumber(n)
+--DEBUG(BigNumber.primeFactorization): print('n =', n)
 	local f = table()
 	while n > 1 do
 		local found = false
 		local i = BigNumber(2)
+--DEBUG(BigNumber.primeFactorization): print('i =', i)
 		local sqrtn = n:sqrt()
+--DEBUG(BigNumber.primeFactorization): print('sqrtn =', sqrtn)
 		while i <= sqrtn do
 			local a, b = n:intdiv(i)
+--DEBUG(BigNumber.primeFactorization): print(i, 'intdiv', a, b)
 			if b:isZero() then
 				n = a
 				f:insert(i)
@@ -1325,6 +1347,7 @@ function BigNumber.primeFactorization(n)
 			i = i + 1
 		end
 		if not found then
+--DEBUG(BigNumber.primeFactorization): print('inserting', n)
 			f:insert(n)
 			break
 		end
