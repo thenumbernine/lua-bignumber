@@ -679,7 +679,16 @@ function BigNumber.longMul(a,b)
 	elseif not a.repeatFrom and b.repeatFrom then
 		return b * a
 	elseif a.repeatFrom and b.repeatFrom then
-		error'here'
+		-- (ai + an / ad) * (bi + bn / bd)
+		-- = ai * (bi + bn / bd) + an / ad * (bi + bn / bd)
+		-- = ai * bi + ai * (bn / bd) + (an / ad) * bi + (an / ad) * (bn / bd)
+		-- = ai * bi + (ai * bn) / bd + (an * bi) / ad + (an * bn) / (ad * bd)
+		local anum, adenom, aint = a:getRepeatAsFrac()
+		local bnum, bdenom, bint = b:getRepeatAsFrac()
+		return aint * bint
+			+ (aint * bnum) / bdenom
+			+ (anum * bint) / adenom
+			+ (anum * bnum) / (adenom * bdenom)
 	end
 
 	local c = BigNumber()

@@ -157,15 +157,14 @@ asserteq(_1_3 - big(1), -_1_3 - _1_3)
 asserteq(big'.1' - _1_3, big{negative=true, repeatFrom=-2, repeatTo=-2, [-1]=2, [-2]=3})
 
 -- mul
--- TODO how about repeatFrom/repeatTo when they are in the negative digits place?
 asserteq(_1_3*10, big{repeatFrom=-1, repeatTo=-1, [0]=3, [-1]=3})
 
 asserteq(_1_3*.1, big{repeatFrom=-2, repeatTo=-2, [-2]=3})
 
-print(_1_3, _1_3:getRepeatAsFrac())
+asserteq(_1_3 * _1_3, big(1) / big(9))
 
 -- div
--- TODO FIXME dividing (even by 1000) removes the repeatFrom/repeatTo
+--print(_1_3, _1_3:getRepeatAsFrac())	== 3, 9, 0
 asserteq(_1_3/10, big{repeatFrom=-2, repeatTo=-2, [-2]=3})
 
 -- divide
