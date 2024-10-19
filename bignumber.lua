@@ -3,12 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local number = require 'ext.number'
 local math = require 'ext.math'
-local asserteq = require 'ext.assert'.eq
-local assertne = require 'ext.assert'.ne
-local assertlt = require 'ext.assert'.lt
-local assertle = require 'ext.assert'.le
-local assertgt = require 'ext.assert'.gt
-local assertge = require 'ext.assert'.ge
+local assert = require 'ext.assert'
 
 local BigNumber = class()
 
@@ -20,11 +15,11 @@ BigNumber.base = 10
 
 function BigNumber:init(n, base)
 -- hmm... this causes errors in longIntDiv
--- but without this I can't make the assertion in toBase() that we are getting an integer
+-- but without this I can't make the assert.ion in toBase() that we are getting an integer
 --	self.minExp = 0
 --	self.maxExp = 0
 	self.base = base
-	assertgt(self.base, 1, "can't set to a base of 1 or lower")
+	assert.gt(self.base, 1, "can't set to a base of 1 or lower")
 	-- TODO add repeating fraction construction using []'s in the string
 	if type(n) == 'string' then
 		if n == 'nan' then self.nan = true end
@@ -45,8 +40,8 @@ function BigNumber:init(n, base)
 		if found then
 			for i=d+1,#n do
 				local v = number.todigit(n:sub(i,i))
-				assertge(v, 0)
-				assertlt(v, self.base)
+				assert.ge(v, 0)
+				assert.lt(v, self.base)
 				self[d-i] = math.floor(v)
 			end
 			self.minExp = d-#n
@@ -119,7 +114,7 @@ function BigNumber:removeLeadingZeroes()
 		assert(not self:isFinite() or self:isZero() or self[self.maxExp] ~= nil)
 		if self[self.maxExp] ~= 0 then break end
 		if self.repeatFrom then
-			assertge(self.maxExp, self.repeatFrom)
+			assert.ge(self.maxExp, self.repeatFrom)
 			if self.maxExp == self.repeatFrom then break end
 		end
 		-- TODO
@@ -137,7 +132,7 @@ function BigNumber:removeTrailingZeroes()
 		assert(not self:isFinite() or self:isZero() or self[self.minExp] ~= nil)
 		if self[self.minExp] ~= 0 then break end
 		if self.repeatTo then
-			assertle(self.minExp, self.repeatTo)
+			assert.le(self.minExp, self.repeatTo)
 			if self.minExp == self.repeatTo then break end
 		end
 --		if self.minExp > 0 then break end
@@ -167,8 +162,8 @@ function BigNumber:carry()
 end
 
 local function gcd(a,b)
-	assertge(a, 1)
-	assertge(b, 1)
+	assert.ge(a, 1)
+	assert.ge(b, 1)
 	repeat
 		a, b = b, a % b
 	until b == 0
@@ -242,8 +237,8 @@ function BigNumber.__add(a,b)
 		while b.repeatTo < a.repeatTo do
 			a:shiftRepeat()
 		end
-		asserteq(a.repeatFrom, b.repeatFrom)
-		asserteq(a.repeatTo, b.repeatTo)
+		assert.eq(a.repeatFrom, b.repeatFrom)
+		assert.eq(a.repeatTo, b.repeatTo)
 		repeatFrom = a.repeatFrom
 		repeatTo = a.repeatTo
 	elseif a.repeatFrom or b.repeatFrom then
@@ -290,7 +285,7 @@ function BigNumber.__add(a,b)
 
 	if c.repeatFrom or c.repeatTo then
 		assert(c.repeatFrom and c.repeatTo)
-		assertle(c.repeatTo, c.repeatFrom)
+		assert.le(c.repeatTo, c.repeatFrom)
 		local all = true
 		for j=c.repeatTo,c.repeatFrom do
 			if c[j] ~= c.base-1 then
@@ -358,7 +353,7 @@ function BigNumber.__sub(a,b)
 				a[i] = a[i] - 1
 				if a[i] >= 0 then break end
 				a[i] = a.base - 1
-				assertne(i, a.maxExp)
+				assert.ne(i, a.maxExp)
 			end
 
 			a.minExp = a.minExp - 1
@@ -398,8 +393,8 @@ function BigNumber.__sub(a,b)
 		while b.repeatTo < a.repeatTo do
 			a:shiftRepeat()
 		end
-		asserteq(a.repeatFrom, b.repeatFrom)
-		asserteq(a.repeatTo, b.repeatTo)
+		assert.eq(a.repeatFrom, b.repeatFrom)
+		assert.eq(a.repeatTo, b.repeatTo)
 		repeatFrom = a.repeatFrom
 		repeatTo = a.repeatTo
 	end
@@ -422,14 +417,14 @@ function BigNumber.__sub(a,b)
 		i = i + 1
 	end
 	-- this fails for big(2.5, 2.5) / big(5)
-	asserteq(borrow, 0)
+	assert.eq(borrow, 0)
 
 	c.repeatFrom = repeatFrom
 	c.repeatTo = repeatTo
 
 	if c.repeatFrom or c.repeatTo then
 		assert(c.repeatFrom and c.repeatTo)
-		assertle(c.repeatTo, c.repeatFrom)
+		assert.le(c.repeatTo, c.repeatFrom)
 		local all = true
 		for j=c.repeatTo,c.repeatFrom do
 			if c[j] ~= c.base-1 then
@@ -499,9 +494,9 @@ function BigNumber:getRepeatAsFrac()
 		return BigNumber(0, self.base), BigNumber(1, self.base), BigNumber(self)
 	end
 
-	assertlt(self.repeatFrom, 0)
-	assertlt(self.repeatTo, 0)
-	assertle(self.repeatTo, self.repeatFrom)
+	assert.lt(self.repeatFrom, 0)
+	assert.lt(self.repeatTo, 0)
+	assert.le(self.repeatTo, self.repeatFrom)
 
 	local num = range(self.repeatTo, self.repeatFrom):mapi(function(i)
 		return self[i], i-self.repeatTo
@@ -523,7 +518,7 @@ function BigNumber:getRepeatAsFrac()
 	remainder.base = self.base
 	remainder = BigNumber(remainder)
 
---DEBUG: asserteq(num / denom + remainder, self) -- inf loop if called from div ?
+--DEBUG: assert.eq(num / denom + remainder, self) -- inf loop if called from div ?
 
 	return num, denom, remainder
 end
@@ -653,7 +648,7 @@ function BigNumber.longMul(a,b)
 		if b.minExp < 0 then
 			shl = -b.minExp
 			b = b:shiftLeft(shl)
-			asserteq(b.minExp, 0)
+			assert.eq(b.minExp, 0)
 		end
 		local bnumdigits = b.maxExp - b.minExp + 1
 --print('rhs number of digits', bnumdigits)
@@ -806,12 +801,12 @@ end
 
 -- returns a table of digits, with the 0's digit in [0], and the n'th digit in [n]
 function BigNumber.toBase(n, base)
-	assertgt(base, 1, "can't set to a base of 1 or lower")
+	assert.gt(base, 1, "can't set to a base of 1 or lower")
 
 	n = BigNumber(n)
 	if n.base == base then return n end
 
---	asserteq(n.minExp, 0, "can only handle integers, but got a minExp "..n.minExp)	-- can't handle fractions yet
+--	assert.eq(n.minExp, 0, "can only handle integers, but got a minExp "..n.minExp)	-- can't handle fractions yet
 
 	-- construct 'p' as value 'base' in base 'n.base'
 	-- don't rely on 'toBase' to convert it -- or we'll get a recursive call
@@ -1002,7 +997,7 @@ function BigNumber.longIntDiv(a,b, getRepeatingDecimals)
 			end
 			digitLastRemainderPairs[key] = place
 		end
-		assertge(dividendCurrentDigits, BigNumber(0, a.base))
+		assert.ge(dividendCurrentDigits, BigNumber(0, a.base))
 		results[place] = digit[0] or 0
 		results.minExp = place
 		if place <= 0 and not getRepeatingDecimals then
