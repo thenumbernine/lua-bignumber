@@ -1,0 +1,10 @@
+name = "bignumber"
+files = {
+	["README.md"] = "bignumber/README.md",
+	["bignumber-dev-1.rockspec"] = "bignumber/bignumber-dev-1.rockspec",
+	["bignumber.lua"] = "bignumber/bignumber.lua",
+	["tests/test.lua"] = "bignumber/tests/test.lua",
+}
+deps = {
+	"ext",
+}
